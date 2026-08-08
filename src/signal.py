@@ -72,29 +72,27 @@ def detect_breaches(
                 alert_state = alerts[ticker][metric_name][t_key]
 
                 if abs_dd >= threshold:
-                    # Currently in breach
-                    # No cooldown: alert every day while breach persists
+                    # Currently in breach — alert every day (no cooldown)
                     alert_state["last_value"] = round(abs_dd, 4)
                     alert_state["consecutive_days"] = alert_state.get("consecutive_days", 0) + 1
 
                     if alert_state.get("breach_start") is None:
                         alert_state["breach_start"] = today
 
-                    # Fire alert daily (no cooldown)
                     alert_state["last_alerted"] = today
-                        new_signals.append({
-                            "ticker": ticker,
-                            "name_cn": m["name_cn"],
-                            "threshold": threshold,
-                            "current_dd": round(abs_dd, 4),
-                            "metric": metric_name,
-                            "dd_percentile": m.get("dd_percentile"),
-                            "breach_start": alert_state["breach_start"],
-                        })
-                        logger.info(
-                            "🚨 %s %s breach: dd=%.1f%% >= %.0f%% threshold",
-                            ticker, metric_name, abs_dd * 100, threshold * 100,
-                        )
+                    new_signals.append({
+                        "ticker": ticker,
+                        "name_cn": m["name_cn"],
+                        "threshold": threshold,
+                        "current_dd": round(abs_dd, 4),
+                        "metric": metric_name,
+                        "dd_percentile": m.get("dd_percentile"),
+                        "breach_start": alert_state["breach_start"],
+                    })
+                    logger.info(
+                        "🚨 %s %s breach: dd=%.1f%% >= %.0f%% threshold",
+                        ticker, metric_name, abs_dd * 100, threshold * 100,
+                    )
 
                 else:
                     # Not in breach — check if recovered
