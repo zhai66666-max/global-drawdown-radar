@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全球市场回撤雷达</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:16px 0;">
+<tr><td align="center">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:720px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+<!-- ═══════════ HEADER ═══════════ -->
+<tr>
+<td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);padding:32px 28px;text-align:center;">
+<div style="font-size:11px;letter-spacing:3px;color:rgba(255,255,255,0.55);margin-bottom:8px;">GLOBAL MARKET DRAWDOWN RADAR</div>
+<h1 style="margin:0;font-size:26px;font-weight:800;color:#f1f5f9;">🌍 全球市场回撤雷达</h1>
+<div style="margin-top:10px;font-size:13px;color:rgba(255,255,255,0.6);">
+{{ run_ts }} · 北京时间
+</div>
+<div style="margin-top:4px;font-size:11px;color:rgba(255,255,255,0.4);">
+数据截至各资产最近一个完整交易日
+</div>
+</td>
+</tr>
+
+<!-- ═══════════ ALERT BANNER ═══════════ -->
+{% if has_historic %}
+<tr>
+<td style="padding:16px 28px 0;">
+<div style="background-color:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px 18px;text-align:center;">
+<span style="font-size:15px;font-weight:700;color:#ef4444;">🚨 历史级回撤警报</span>
+<span style="font-size:13px;color:#64748b;display:block;margin-top:4px;">{{ summary.historic_count }} 个资产历史回撤超过 -40%</span>
+</div>
+</td>
+</tr>
+{% elif has_alert %}
+<tr>
+<td style="padding:16px 28px 0;">
+<div style="background-color:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:14px 18px;text-align:center;">
+<span style="font-size:15px;font-weight:700;color:#f59e0b;">⚠️ 新回撤信号</span>
+<span style="font-size:13px;color:#64748b;display:block;margin-top:4px;">{{ alerts|length }} 个资产触发阈值突破</span>
+</div>
+</td>
+</tr>
+{% endif %}
+
+<!-- ═══════════ MARKET OVERVIEW DASHBOARD ═══════════ -->
+<tr>
+<td style="padding:20px 28px 8px;">
+<h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0f172a;">📊 市场概览</h2>
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+<tr>
+<td width="33%" style="padding:14px 16px;text-align:center;border-right:1px solid #e2e8f0;">
+<div style="font-size:11px;color:#64748b;margin-bottom:4px;">深度回撤<br>(≤ -30%)</div>
+<div style="font-size:24px;font-weight:800;color:#f97316;">{{ summary.deep_count }}</div>
+</td>
+<td width="33%" style="padding:14px 16px;text-align:center;border-right:1px solid #e2e8f0;">
+<div style="font-size:11px;color:#64748b;margin-bottom:4px;">历史级回撤<br>(≤ -40%)</div>
+<div style="font-size:24px;font-weight:800;color:#ef4444;">{{ summary.historic_count }}</div>
+</td>
+<td width="33%" style="padding:14px 16px;text-align:center;">
+<div style="font-size:11px;color:#64748b;margin-bottom:4px;">正常<br>(> -20%)</div>
+<div style="font-size:24px;font-weight:800;color:#22c55e;">{{ summary.normal_count }}</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- ═══════════ QUICK STATS ═══════════ -->
+<tr>
+<td style="padding:12px 28px 4px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="50%" style="vertical-align:top;padding-right:8px;">
+<div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:6px;">📉 昨日跌幅最大</div>
+{% for m in summary.worst_daily %}
+<div style="font-size:12px;color:#334155;line-height:1.8;">
+{{ m.ticker }}｜{{ m.name_cn }}
+<span style="font-weight:700;color:#ef4444;float:right;">{{ "%.2f"|format(m.daily_change_pct * 100) }}%</span>
+</div>
+{% endfor %}
+</td>
+<td width="50%" style="vertical-align:top;padding-left:8px;">
+<div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:6px;">🔻 回撤最深</div>
+{% for m in summary.worst_dd %}
+<div style="font-size:12px;color:#334155;line-height:1.8;">
+{{ m.ticker }}｜{{ m.name_cn }}
+<span style="font-weight:700;color:#ef4444;float:right;">{{ "%.1f"|format(m.dd_historical * 100) }}%</span>
+</div>
+{% endfor %}
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<!-- ═══════════ CORE COMPARISON TABLE ═══════════ -->
+<tr>
+<td style="padding:20px 0 8px;">
+<h2 style="margin:0 0 12px 28px;font-size:16px;font-weight:700;color:#0f172a;">🌍 全球指数横向对比</h2>
+<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 4px;">
+<table cellpadding="0" cellspacing="0" style="min-width:900px;width:100%;border-collapse:collapse;font-size:12px;">
+
+<!-- Table Head -->
+<thead>
+<tr style="background-color:#f1f5f9;border-bottom:2px solid #cbd5e1;">
+<th style="position:sticky;left:0;background-color:#f1f5f9;z-index:2;padding:10px 8px;text-align:left;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">资产</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">最新价</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">昨日</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">52周回撤</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">52周最大</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">5年回撤</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#1e3a5f;white-space:nowrap;background-color:#e0e7ff;">历史回撤</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#1e3a5f;white-space:nowrap;background-color:#e0e7ff;">分位</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">历史最大</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">20日波动</th>
+<th style="padding:10px 8px;text-align:right;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">距高点</th>
+<th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:700;color:#475569;white-space:nowrap;">状态</th>
+</tr>
+</thead>
+
+<!-- Table Body -->
+<tbody>
+{% for r in rows %}
+{% set bg = '#fffef0' if r.status_emoji == '🟡' else '#fff7ed' if r.status_emoji == '🟠' else '#fef2f2' if r.status_emoji == '🔴' else '#ffffff' %}
+<tr style="background-color:{{ bg }};border-bottom:1px solid #e2e8f0;">
+<!-- Asset name (sticky) -->
+<td style="position:sticky;left:0;background-color:{{ bg }};z-index:1;padding:10px 8px;white-space:nowrap;">
+<div style="font-weight:700;color:#0f172a;">{{ r.ticker }}</div>
+<div style="font-size:10px;color:#64748b;">{{ r.name_cn }}</div>
+</td>
+<!-- Price -->
+<td style="padding:10px 8px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap;">{{ r.price_display }}</td>
+<!-- Daily change -->
+<td style="padding:10px 8px;text-align:right;font-weight:600;color:{{ r.change_color }};white-space:nowrap;">{{ r.change_display }}</td>
+<!-- 52w dd -->
+<td style="padding:10px 8px;text-align:right;color:#475569;white-space:nowrap;">{{ r.dd_52w_display }}</td>
+<!-- 52w max dd -->
+<td style="padding:10px 8px;text-align:right;color:#475569;white-space:nowrap;">{{ r.max_dd_52w_display }}</td>
+<!-- 5y dd -->
+<td style="padding:10px 8px;text-align:right;color:#475569;white-space:nowrap;">{{ r.dd_5y_display }}</td>
+<!-- Historical dd (highlighted) -->
+<td style="padding:10px 8px;text-align:right;font-weight:800;color:#1e3a5f;white-space:nowrap;background-color:#e0e7ff40;">{{ r.dd_historical_display }}</td>
+<!-- Percentile (highlighted) -->
+<td style="padding:10px 8px;text-align:right;font-weight:700;color:#1e3a5f;white-space:nowrap;background-color:#e0e7ff40;">{{ r.dd_percentile_display }}</td>
+<!-- Historical max dd -->
+<td style="padding:10px 8px;text-align:right;color:#94a3b8;white-space:nowrap;">{{ r.max_dd_historical_display }}</td>
+<!-- 20d vol -->
+<td style="padding:10px 8px;text-align:right;color:#475569;white-space:nowrap;">{{ r.vol_20d_display }}</td>
+<!-- Distance from ATH -->
+<td style="padding:10px 8px;text-align:right;font-size:11px;color:#64748b;white-space:nowrap;">{{ r.dist_from_ath_display }}<br><span style="font-size:10px;">{{ r.days_display }}</span></td>
+<!-- Status -->
+<td style="padding:10px 8px;text-align:center;">
+<span style="font-size:11px;font-weight:700;color:{{ r.status_color }};">{{ r.status_emoji }}<br>{{ r.status_label }}</span>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<div style="font-size:10px;color:#94a3b8;padding:4px 28px;">数据截至：各资产最近有效交易日 · 手机端可左右滑动查看完整表格</div>
+</td>
+</tr>
+
+<!-- ═══════════ TODAY'S WATCHLIST ═══════════ -->
+<tr>
+<td style="padding:20px 28px 8px;">
+<h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0f172a;">🔎 今日重点观察</h2>
+
+{% if summary.worst_dd %}
+{% for m in summary.worst_dd %}
+<div style="background-color:{% if m.status_emoji == '🔴' %}#fef2f2{% elif m.status_emoji == '🟠' %}#fff7ed{% elif m.status_emoji == '🟡' %}#fffef0{% else %}#f8fafc{% endif %};border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+<div style="font-size:15px;font-weight:700;color:#0f172a;">{{ m.status_emoji }} {{ m.ticker }}｜{{ m.name_cn }}</div>
+<div style="margin-top:8px;font-size:13px;color:#475569;line-height:1.7;">
+当前历史回撤：<b style="color:#ef4444;">{{ "%.1f"|format(m.dd_historical * 100) }}%</b>{% if m.dd_percentile %} · 历史分位：<b>{{ "%.0f"|format(m.dd_percentile) }}%</b>{% endif %}{% if m.max_dd_historical %} · 历史最大回撤：<b>{{ "%.1f"|format(m.max_dd_historical * 100) }}%</b>{% endif %}
+</div>
+<div style="margin-top:4px;font-size:12px;color:#64748b;">
+{% if m.dd_percentile and m.dd_percentile >= 95 %}
+当前处于历史上较为罕见的深度回撤阶段。
+{% elif m.dd_percentile and m.dd_percentile >= 85 %}
+当前回撤超过历史上约 {{ "%.0f"|format(m.dd_percentile) }}% 的交易日。
+{% elif m.dd_percentile and m.dd_percentile >= 70 %}
+当前回撤高于历史中位数水平。
+{% else %}
+当前回撤处于历史正常波动范围内。
+{% endif %}
+</div>
+</div>
+{% endfor %}
+{% else %}
+<div style="font-size:13px;color:#64748b;padding:8px 0;">今日无特别突出的回撤信号。</div>
+{% endif %}
+</td>
+</tr>
+
+<!-- ═══════════ NEW DRAWDOWN SIGNALS ═══════════ -->
+<tr>
+<td style="padding:20px 28px 8px;">
+<h2 style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#0f172a;">🚨 新回撤信号</h2>
+{% if alerts %}
+{% for a in alerts %}
+<div style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+<div style="font-size:14px;font-weight:700;color:#0f172a;">
+{% if a.threshold >= 0.40 %}🔴{% elif a.threshold >= 0.30 %}🟠{% else %}🟡{% endif %}
+{{ a.ticker }}｜{{ a.name_cn }}
+首次进入 -{{ "%.0f"|format(a.threshold * 100) }}% 回撤区间
+</div>
+<div style="font-size:13px;color:#475569;margin-top:6px;">
+当前历史回撤：<b style="color:#ef4444;">-{{ "%.1f"|format(a.current_dd * 100) }}%</b>
+{% if a.dd_percentile %} · 历史分位：{{ "%.0f"|format(a.dd_percentile) }}%{% endif %}
+</div>
+</div>
+{% endfor %}
+{% else %}
+<div style="font-size:13px;color:#94a3b8;padding:8px 0;">今日没有新的深度回撤信号。</div>
+{% endif %}
+</td>
+</tr>
+
+<!-- ═══════════ ERRORS ═══════════ -->
+{% if errors %}
+<tr>
+<td style="padding:16px 28px 8px;">
+<h2 style="margin:0 0 12px 0;font-size:14px;font-weight:600;color:#f59e0b;">⚠️ 数据获取异常</h2>
+{% for ticker, err in errors.items() %}
+<div style="font-size:12px;color:#64748b;line-height:1.6;">⚠️ {{ ticker }}：本次数据获取失败（{{ err }}），未更新。</div>
+{% endfor %}
+</td>
+</tr>
+{% endif %}
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<tr>
+<td style="padding:16px 28px 24px;border-top:1px solid #e2e8f0;margin-top:12px;">
+<div style="font-size:10px;color:#94a3b8;line-height:1.8;">
+<b style="color:#64748b;">DATA & METHODOLOGY</b><br>
+数据源：Yahoo Finance (yfinance) · 所有长期回撤使用复权价格（Adj Close）· 最新价使用未复权收盘价<br>
+回撤 = 当前价格 / 历史最高价格 - 1 · 分位数基于 expanding-window 计算，无未来数据泄露<br>
+回撤信号仅用于市场监控，不构成投资建议。投资决策请结合自身情况独立判断。<br>
+运行时间：{{ run_ts }} Asia/Shanghai
+</div>
+</td>
+</tr>
+
+</table>
+
+</td></tr>
+</table>
+
+</body>
+</html>
