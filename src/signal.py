@@ -73,24 +73,15 @@ def detect_breaches(
 
                 if abs_dd >= threshold:
                     # Currently in breach
-                    last_alerted = alert_state.get("last_alerted")
-
-                    should_alert = False
-                    if last_alerted is None:
-                        # First breach ever
-                        should_alert = True
-                        alert_state["breach_start"] = today
-                    else:
-                        days_since = (datetime.strptime(today, "%Y-%m-%d") -
-                                      datetime.strptime(last_alerted, "%Y-%m-%d")).days
-                        if days_since >= ALERT_COOLDOWN_DAYS:
-                            should_alert = True
-
+                    # No cooldown: alert every day while breach persists
                     alert_state["last_value"] = round(abs_dd, 4)
                     alert_state["consecutive_days"] = alert_state.get("consecutive_days", 0) + 1
 
-                    if should_alert:
-                        alert_state["last_alerted"] = today
+                    if alert_state.get("breach_start") is None:
+                        alert_state["breach_start"] = today
+
+                    # Fire alert daily (no cooldown)
+                    alert_state["last_alerted"] = today
                         new_signals.append({
                             "ticker": ticker,
                             "name_cn": m["name_cn"],
