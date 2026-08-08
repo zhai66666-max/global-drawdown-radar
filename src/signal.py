@@ -50,7 +50,7 @@ def detect_breaches(
         if ticker not in alerts:
             alerts[ticker] = {}
 
-        for metric_name, dd_value in [("dd_historical", dd_historical), ("dd_5y", dd_5y)]:
+        for metric_name, dd_value in [("dd_historical", dd_historical)]:
             if dd_value is None:
                 continue
 
