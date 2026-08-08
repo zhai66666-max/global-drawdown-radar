@@ -1,0 +1,64 @@
+name: Global Market Drawdown Radar
+
+on:
+  schedule:
+    # 00:00 UTC = 08:00 Beijing time (CST, UTC+8)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      preview:
+        description: 'Preview mode (no email)'
+        type: boolean
+        default: false
+      send_test:
+        description: 'Send to test recipient only'
+        type: boolean
+        default: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Drawdown Radar
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TEST_RECIPIENT: ${{ secrets.TEST_RECIPIENT }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GITHUB_ACTIONS: true
+        run: |
+          if [ "${{ github.event.inputs.preview }}" = "true" ]; then
+            python -m src.main --preview
+          elif [ "${{ github.event.inputs.send_test }}" = "true" ]; then
+            python -m src.main --send-test
+          else
+            python -m src.main
+          fi
+
+      - name: Upload preview on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: radar-preview
+          path: preview.html
+          retention-days: 7
