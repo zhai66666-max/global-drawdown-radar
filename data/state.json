@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_run_ts": "2026-08-21T00:51:37.712795+00:00",
+  "last_run_ts": "2026-08-22T00:47:12.935026+00:00",
   "alerts": {
     "QQQM": {
       "dd_historical": {
@@ -383,10 +383,10 @@
     "EWZ": {
       "dd_historical": {
         "0.2": {
-          "last_alerted": "2026-08-21",
-          "last_value": 0.2445,
+          "last_alerted": "2026-08-22",
+          "last_value": 0.2242,
           "breach_start": "2026-08-08",
-          "consecutive_days": 16
+          "consecutive_days": 17
         },
         "0.3": {
           "last_alerted": null,
