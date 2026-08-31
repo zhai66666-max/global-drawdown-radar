@@ -117,7 +117,7 @@ def main():
                 if dd is not None:
                     summary_lines.append(
                         f"{m['ticker']}|{m['name_cn']}: "
-                        f"历史回撤 {dd*100:.1f}%, 昨日 {change*100:.1f}%" if change else f"{m['ticker']}|{m['name_cn']}: 历史回撤 {dd*100:.1f}%"
+                        f"历史回撤 {dd*100:.1f}%, 昨日 {change*100:.1f}%" if change is not None else f"{m['ticker']}|{m['name_cn']}: 历史回撤 {dd*100:.1f}%"
                     )
             data_summary = "\n".join(summary_lines)
 
@@ -186,10 +186,11 @@ def main():
             logger.info("✅ Email sent!")
         else:
             logger.error("❌ Email send failed")
-            # Save HTML as artifact for debugging
+            # Save HTML as artifact for debugging, then fail loudly
             preview_path = Path("preview.html")
             preview_path.write_text(html, encoding="utf-8")
             logger.info("Report saved to preview.html for debugging")
+            sys.exit(2)
 
     # ── 7. Persist state ───────────────────────────────────────────────────
     save_state(updated_state)

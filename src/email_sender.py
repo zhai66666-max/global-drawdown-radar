@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 def build_subject(has_historic: bool, has_alert: bool, date_str: str) -> str:
     """Dynamic subject line based on alert severity."""
     if has_historic:
-        return f"🚨 全球市场回撤雷达｜{date_str}｜08:00"
+        return f"🚨 全球市场回撤雷达｜{date_str}｜07:21"
     elif has_alert:
-        return f"⚠️ 全球市场回撤雷达｜{date_str}｜08:00"
+        return f"⚠️ 全球市场回撤雷达｜{date_str}｜07:21"
     else:
-        return f"🌍 全球市场回撤雷达｜{date_str}｜08:00"
+        return f"🌍 全球市场回撤雷达｜{date_str}｜07:21"
 
 
 def send_email(

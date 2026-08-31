@@ -2,8 +2,8 @@ name: Global Market Drawdown Radar
 
 on:
   schedule:
-    # 00:00 UTC = 08:00 Beijing time (CST, UTC+8)
-    - cron: '0 0 * * *'
+    # 每天北京时间 07:21（UTC 前一天 23:21）
+    - cron: '21 23 * * *'
   workflow_dispatch:
     inputs:
       preview:
