@@ -113,14 +113,20 @@ def derive_nasdaq100(raw: dict, convention: str = "cn", thresholds: dict | None 
     macro = raw["macro"]
     comps = raw["components"]
 
-    cur = ix["current_price"]
+    cur = ix["current_price"]                  # 页头实时价（盘面快照）
+    # 派生指标一律以「已收盘」那根日线的收盘价为锚。盘中那一根还没走完，
+    # 拿它算均线/分位会让指标每分钟跟着跳，也会和按收盘算的回撤打架。
+    ref = ix.get("idx_close") or cur
     ma50, ma200 = ix.get("ma_50"), ix.get("ma_200")
     rsi = ix.get("rsi")
     vol, avg_vol_20 = ix.get("volume"), ix.get("avg_vol_20")
-    low52, high52 = ix["low_52w"], ix["high_52w"]
-    pos52 = ((cur - low52) / (high52 - low52) * 100) if (high52 - low52) else 0.0
+    vol_ref = ix.get("vol_ref") or vol            # 基准日成交量，与 20 日均量同口径
+    low52, high52 = ix["low_52w"], ix["high_52w"]  # 已是收盘口径
+    pos52 = ix.get("pos52")
+    if pos52 is None:                              # provider 没给才自己算
+        pos52 = ((ref - low52) / (high52 - low52) * 100) if (high52 - low52) else 0.0
 
-    up = ix["change"] >= 0
+    ref_up = (ix.get("idx_close_change") or 0) >= 0  # 基准日方向（量能文案用它）
     chg_color = change_color(ix["change"] if ix["change"] != 0 else None, convention)
 
     # ── RSI 档位
@@ -138,15 +144,15 @@ def derive_nasdaq100(raw: dict, convention: str = "cn", thresholds: dict | None 
     else:
         rsi_label, rsi_color = "无数据", "#9ca3af"
 
-    # ── 趋势（双均线）—— 文案与原件一字不差
+    # ── 趋势（双均线）—— 文案与原件一字不差，只是判断改用收盘基准价
     if ma50 and ma200:
-        if cur > ma50 > ma200:
+        if ref > ma50 > ma200:
             trend_detail = "指数运行在双均线之上，中长期上升趋势明确。回调至均线附近可视为加仓机会。"
             trend_tone = "up"
-        elif cur < ma50 < ma200:
+        elif ref < ma50 < ma200:
             trend_detail = "指数处于双均线之下，中期下行压力较大。建议轻仓观望，等待指数重新站上关键均线。"
             trend_tone = "down"
-        elif cur > ma50 and ma50 < ma200:
+        elif ref > ma50 and ma50 < ma200:
             trend_detail = "突破50日线但仍在200日线下方，短期反弹但长期趋势未确认。轻仓参与，严格止损。"
             trend_tone = "watch"
         else:
@@ -170,13 +176,13 @@ def derive_nasdaq100(raw: dict, convention: str = "cn", thresholds: dict | None 
     else:
         rsi_detail = "RSI 数据暂不可用。"
 
-    # ── 量能文案
-    if avg_vol_20 and vol:
-        vr = vol / avg_vol_20
+    # ── 量能文案（基准日成交量 vs 20 日均量，同为收盘口径）
+    if avg_vol_20 and vol_ref:
+        vr = vol_ref / avg_vol_20
         if vr > 1.5:
-            vol_detail = f"放量（{vr:.1f}倍均量），" + ("多头资金积极入场。" if up else "恐慌盘涌出，短期仍有下行惯性。")
+            vol_detail = f"放量（{vr:.1f}倍均量），" + ("多头资金积极入场。" if ref_up else "恐慌盘涌出，短期仍有下行惯性。")
         elif vr < 0.7:
-            vol_detail = f"缩量（{vr*100:.0f}%均量），" + ("追涨意愿不强，上涨可持续性存疑。" if up else "抛压减小，可能是短期见底信号。")
+            vol_detail = f"缩量（{vr*100:.0f}%均量），" + ("追涨意愿不强，上涨可持续性存疑。" if ref_up else "抛压减小，可能是短期见底信号。")
         else:
             vol_detail = "量能正常，交投情绪稳定。"
     else:
@@ -276,6 +282,14 @@ def derive_nasdaq100(raw: dict, convention: str = "cn", thresholds: dict | None 
         "rsi_label": rsi_label,
         "rsi_color": rsi_color,
         "pos52": pos52,
+        # 收盘口径基准（06 技术指标、04 的 52 周区间/分位都以它为准）
+        "idx_close_display": f"{ref:,.2f}",
+        "idx_close_label": ix.get("close_label") or "",
+        "snapshot_label": ix.get("bar_label") or "",
+        # 盘中触发时最后一根 bar 被剔除过 —— 用来决定要不要提示口径差异
+        "intraday_dropped": bool(ix.get("intraday_dropped")),
+        "vol_ref_display": fmt_vol(vol_ref) if vol_ref else "N/A",
+        "vol_ref_above": bool(avg_vol_20 and vol_ref and vol_ref > avg_vol_20),
         # 指数（^NDX）本身没有成交量，官方接口与 Yahoo 都返回 0。
         # 显示成「0」会像数据出错，统一降级为 N/A。
         "vol_display": fmt_vol(vol) if vol else "N/A",
@@ -294,7 +308,7 @@ def derive_nasdaq100(raw: dict, convention: str = "cn", thresholds: dict | None 
             {"label": "趋势判断", "text": trend_detail, "tone": trend_tone},
             {"label": "动能分析", "text": rsi_detail,
              "tone": "watch" if not rsi or 30 <= rsi <= 70 else ("up" if rsi > 70 else "down")},
-            {"label": "量能分析", "text": vol_detail, "tone": "up" if up else "down"},
+            {"label": "量能分析", "text": vol_detail, "tone": "up" if ref_up else "down"},
             {"label": "位置分析", "text": pos52_detail,
              "tone": "up" if pos52 > 85 else ("down" if pos52 < 15 else "watch")},
             {"label": "市场广度", "text": breadth_detail,

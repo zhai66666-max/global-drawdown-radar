@@ -61,6 +61,11 @@ def build_context(results: dict[str, pipeline.SourceResult],
         "ndx_price": "—", "ndx_change": "—", "ndx_change_pct": "—",
         "ndx_change_color": change_color(None, convention), "ndx_up": True,
         "ndx_bar_label": "",
+        # 收盘口径：页头/04 的盘面快照是实时值，而 52 周区间与分位、均线、
+        # RSI、20 日均量以及回撤全部按「已收盘」那根日线算。两个基准都要
+        # 在邮件里标出来，否则同一封邮件里两个数字会互相矛盾。
+        "indicator_label": "",
+        "indicator_dropped": False,
         "hist_dd": None, "hist_dd_display": "—", "hist_percentile": None,
         "hist_level": "—", "hist_emoji": "⚪", "hist_max_dd": None,
         "dd_as_of_short": "", "dd_as_of_full": "",
@@ -80,6 +85,8 @@ def build_context(results: dict[str, pipeline.SourceResult],
             "ndx_change_color": nq_data["chg_color"],
             "ndx_up": ix["change"] >= 0,
             "ndx_bar_label": nq_data.get("bar_label") or "",
+            "indicator_label": nq_data.get("idx_close_label") or "",
+            "indicator_dropped": bool(nq_data.get("intraday_dropped")),
         })
     if em_data:
         dd = em_data["dd"]

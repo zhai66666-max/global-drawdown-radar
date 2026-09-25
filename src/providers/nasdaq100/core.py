@@ -355,6 +355,29 @@ def _fetch_index_data(ticker: str, label: str) -> Dict[str, Any]:
     if hist["Close"].isna().all():
         raise ValueError(f"{label} 数据全为 NaN")
 
+    # ── 这一根日线是哪一天的、算不算「已收盘」
+    # yfinance 在开盘后就生成当天的 bar，所以盘中时 hist 的最后一行是
+    # 「当天还没走完」的那根；官方兜底源则相反，要等收盘后才收录当天。
+    try:
+        last_bar = str(hist.index[-1])[:10]
+    except Exception:                                   # noqa: BLE001
+        last_bar = ""
+    phase = _bar_phase(last_bar)
+
+    # ══ 口径分离（两条线，别再混在一起）══════════════════════════════════
+    # · 盘面快照（页头大数字、04 区块的开盘/前收盘/日内区间/成交量）：
+    #   盘中就是实时值 —— 这正是它存在的意义，剔除反而看不到当下。
+    # · 派生指标（52 周区间与分位、50/200 日均线、RSI、20 日均量）：
+    #   一律走收盘口径，且必须剔除当天那根还没走完的 bar。否则 ——
+    #     ① 盘中最高价会把 52 周区间顶高（实测 30,770.63 vs 收盘 30,732.40）；
+    #     ② 半截成交量会被误判成「缩量」；
+    #     ③ 与回撤（按收盘算）永远差一个交易日，同一封邮件里两个数字打架。
+    intraday_bar = (phase == "盘中") and len(hist) > 1
+    hist_c = hist.iloc[:-1] if intraday_bar else hist
+    close_c = hist_c["Close"]
+    vol_c = hist_c["Volume"] if "Volume" in hist_c.columns else None
+
+    # ── 盘面快照
     cur = _safe_float(hist["Close"].iloc[-1])
     prev_close = _safe_float(info.get("previousClose", hist["Close"].iloc[-2] if len(hist) > 1 else cur))
     if prev_close == 0.0:
@@ -362,24 +385,38 @@ def _fetch_index_data(ticker: str, label: str) -> Dict[str, Any]:
     change = cur - prev_close
     change_pct = (change / prev_close) * 100 if prev_close else 0.0
 
-    high_52w = _safe_float(hist["High"].max())
-    low_52w = _safe_float(hist["Low"].min())
     day_low = _safe_float(hist["Low"].iloc[-1])
     day_high = _safe_float(hist["High"].iloc[-1])
     volume = _safe_int(hist["Volume"].iloc[-1])
 
+    # 当日开盘（原来再打一次 yfinance 取 5 日线；现在直接用已加载的日线末行）
+    _open = hist["Open"].iloc[-1] if "Open" in hist.columns else None
+    open_p = round(_safe_float(_open), 2) if _open is not None and not pd.isna(_open) else None
+
+    # ── 派生指标：之后全程只碰 hist_c（已收盘序列）
+    idx_close = _safe_float(close_c.iloc[-1])
+    idx_close_prev = _safe_float(close_c.iloc[-2]) if len(close_c) > 1 else idx_close
+    try:
+        idx_close_date = str(hist_c.index[-1])[:10]
+    except Exception:                                   # noqa: BLE001
+        idx_close_date = last_bar
+
+    # 52 周区间：收盘口径（原来是 High/Low 极值，含盘中，与回撤不同源）
+    high_52w = _safe_float(close_c.max())
+    low_52w = _safe_float(close_c.min())
+
     # MA-50
-    ma_50_val = hist["Close"].rolling(window=50).mean().iloc[-1]
+    ma_50_val = close_c.rolling(window=50).mean().iloc[-1]
     ma_50 = round(float(ma_50_val), 2) if not pd.isna(ma_50_val) else None
 
     # MA-200
     ma_200 = None
-    if len(hist) >= 200:
-        ma_200_val = hist["Close"].rolling(window=200).mean().iloc[-1]
+    if len(close_c) >= 200:
+        ma_200_val = close_c.rolling(window=200).mean().iloc[-1]
         ma_200 = round(float(ma_200_val), 2) if not pd.isna(ma_200_val) else None
 
     # RSI
-    delta = hist["Close"].diff()
+    delta = close_c.diff()
     gain = delta.where(delta > 0, 0.0)
     loss = (-delta).where(delta < 0, 0.0)
     avg_gain = gain.rolling(window=14).mean()
@@ -389,38 +426,42 @@ def _fetch_index_data(ticker: str, label: str) -> Dict[str, Any]:
     rsi_val = float(rsi_series.iloc[-1])
     rsi = round(rsi_val, 2) if not np.isnan(rsi_val) else None
 
-    # 20日均量
+    # 20 日均量 + 基准日成交量（同走已收盘序列，才能和均量比）
     avg_vol_20 = None
-    if len(hist) >= 20:
-        v20 = hist["Volume"].rolling(window=20).mean().iloc[-1]
+    vol_ref = None
+    if vol_c is not None and len(vol_c) >= 20:
+        v20 = vol_c.rolling(window=20).mean().iloc[-1]
         avg_vol_20 = round(float(v20)) if not pd.isna(v20) else None
+    if vol_c is not None and len(vol_c):
+        _v = _safe_int(vol_c.iloc[-1])
+        vol_ref = _v or None
 
-    # 当日开盘（原来再打一次 yfinance 取 5 日线；现在直接用已加载的日线末行）
-    _open = hist["Open"].iloc[-1] if "Open" in hist.columns else None
-    open_p = round(_safe_float(_open), 2) if _open is not None and not pd.isna(_open) else None
+    # 52 周分位也收到这里算，避免派生层再实现一遍、两边口径走散
+    pos52 = ((idx_close - low_52w) / (high_52w - low_52w) * 100) if (high_52w - low_52w) else 0.0
 
     symbol_name = "纳斯达克100" if ticker == "^NDX" else "QQQ (纳斯达克100 ETF)"
 
-    # 这根日线是哪一天的、算不算「已收盘」——页头要显示出来。
-    # 关键点：盘中时 yfinance 会把当天那根还没走完的 bar 当作最后一行，
-    # 所以页头的数字是实时价；而回撤那一侧（etf_monitor）用的是 NASDAQ
-    # 官方历史接口，要等收盘后才收录当天 → 两边会差一个交易日。
-    try:
-        last_bar = str(hist.index[-1])[:10]
-    except Exception:                                   # noqa: BLE001
-        last_bar = ""
-    phase = _bar_phase(last_bar)
     bar_label = f"{last_bar[5:]} {phase}".strip() if last_bar else ""
+    close_label = f"{idx_close_date[5:]} 收盘" if idx_close_date else ""
 
     return {
         "symbol": ticker, "name": symbol_name,
+        # ── 盘面快照（实时）
         "current_price": round(cur, 2), "prev_close": round(prev_close, 2),
         "change": round(change, 2), "change_pct": round(change_pct, 2),
         "open": open_p, "day_high": round(day_high, 2), "day_low": round(day_low, 2),
-        "high_52w": round(high_52w, 2), "low_52w": round(low_52w, 2),
-        "volume": volume, "avg_vol_20": avg_vol_20,
-        "ma_50": ma_50, "ma_200": ma_200, "rsi": rsi,
+        "volume": volume,
         "last_bar": last_bar, "bar_phase": phase, "bar_label": bar_label,
+        # ── 收盘口径（派生指标、回撤、AI 解读都以它为锚）
+        "idx_close": round(idx_close, 2), "idx_close_date": idx_close_date,
+        "idx_close_prev": round(idx_close_prev, 2),
+        "idx_close_change": round(idx_close - idx_close_prev, 2),
+        "close_label": close_label,
+        "intraday_dropped": intraday_bar,
+        "high_52w": round(high_52w, 2), "low_52w": round(low_52w, 2),
+        "pos52": round(pos52, 1),
+        "avg_vol_20": avg_vol_20, "vol_ref": vol_ref,
+        "ma_50": ma_50, "ma_200": ma_200, "rsi": rsi,
         "data_source": src or "未知",
         "date": datetime.now().strftime("%Y-%m-%d"),
     }
@@ -581,20 +622,37 @@ def deepseek_analysis(
                 qqq_buy_signal = f"🟡 双倍加仓触发！QQQ 回撤 {qqq_dd:.2f}%，已突破 10% 阈值，应 2x 投入"
             break
 
+    # AI 拿到的必须是收盘口径 —— 这段 prompt 自己写着「上一交易日」，
+    # 而 ix['current_price'] 在盘中是实时价，喂进去等于让模型把一根
+    # 还没走完的 bar 当收盘价分析。（定时的 08:45 那次两者相同，盘中手动
+    # 触发才会分叉。）
+    def _n(v, d=2, suffix=""):
+        try:
+            return f"{float(v):,.{d}f}{suffix}"
+        except (TypeError, ValueError):
+            return "N/A"
+
+    _asof = ix.get("idx_close_date") or "—"
+    _c = ix.get("idx_close") or ix.get("current_price")
+    _cchg = ix.get("idx_close_change") or 0.0
+    _p52 = ix.get("pos52")
+    _vr = ix.get("vol_ref")
+    _av = ix.get("avg_vol_20")
+
     prompt = f"""你是纳斯达克100 QDII 投资分析专家。请基于以下数据，为持有纳斯达克100 QDII 基金的中国投资者撰写一份深度分析报告。
 
-## 上一交易日数据
+## 收盘口径数据（截至 {_asof}，全部为收盘价，可放心当作「上一交易日」）
 
-**纳斯达克100 指数:**
-- 收盘价: {ix['current_price']:,.2f}
-- 涨跌: {ix['change']:+,.2f} ({ix['change_pct']:+.2f}%)
-- 开盘: {ix['open']:,.2f} | 前收盘: {ix['prev_close']:,.2f}
-- 日内区间: {ix['day_low']:,.2f} – {ix['day_high']:,.2f}
-- 52周区间: {ix['low_52w']:,.2f} – {ix['high_52w']:,.2f}
-- 52周分位: {(ix['current_price'] - ix['low_52w']) / (ix['high_52w'] - ix['low_52w']) * 100:.1f}%
-- 成交量: {ix['volume']:,}
-- 50日均线: {ix.get('ma_50', 'N/A')} | 200日均线: {ix.get('ma_200', 'N/A')}
-- RSI(14): {ix.get('rsi', 'N/A')}
+**纳斯达克100 指数（收盘）:**
+- 收盘价: {_n(_c)}
+- 较前一交易日: {'%+.2f' % _cchg}
+- 52周收盘区间: {_n(ix.get('low_52w'))} – {_n(ix.get('high_52w'))}
+- 52周分位（收盘口径）: {_n(_p52, 1, '%')}
+- 50日均线: {_n(ix.get('ma_50'))} | 200日均线: {_n(ix.get('ma_200'))}
+- RSI(14): {_n(ix.get('rsi'), 1)}
+- 基准日成交量: {_n(_vr, 0)} | 20日均量: {_n(_av, 0)}
+
+**当前盘面行情（仅供参考，未收盘，不要当作收盘价）:** {ix.get('bar_label') or '—'} · 最新 {_n(ix.get('current_price'))}（{_n(ix.get('change_pct'), 2, '%')}）
 
 **宏观指标评分（总分 {total_score}/{max_possible} = {score_ratio}%）:**
 {chr(10).join(macro_lines)}

@@ -197,7 +197,7 @@
 纳指已进入{% if etf_monitor.dd.current_drawdown <= -30 %}极端{% elif etf_monitor.dd.current_drawdown <= -20 %}重大{% elif etf_monitor.dd.current_drawdown <= -15 %}较大{% else %}中等{% endif %}历史回撤区间（{{ etf_monitor.dd.level.emoji }} {{ etf_monitor.dd.level.label }}）
 {% else %}
 纳指当前处于{{ etf_monitor.dd.level.emoji }} {{ etf_monitor.dd.level.label }}，未进入历史加仓区间
-{% endif %}{% if summary.dd_as_of_short %}（回撤按 {{ summary.dd_as_of_short }} 计）{% endif %}
+{% endif %}
 <br>
 {% if etf_monitor.signal.premium_ok %}场内存在溢价 ≤ {{ thresholds.etf_premium_ok }}% 的 ETF，价格合理：<b style="color:{{ theme.ink }};">{{ etf_monitor.best_label }} {{ etf_monitor.best_premium_display }}</b>
 {% else %}暂无溢价 ≤ {{ thresholds.etf_premium_ok }}% 的场内 ETF{% endif %}
@@ -323,7 +323,7 @@
 
 {% if nasdaq100 and sections.index_overview %}
 <!-- ══════════ 04 纳指市场概况 ══════════ -->
-{{ sec('04', '纳指市场概况', '纳斯达克100 指数 · 数据源 ' ~ (nasdaq100.ix.data_source | default('未知'))) }}
+{{ sec('04', '纳指市场概况', '纳斯达克100 指数 · 数据源 ' ~ (nasdaq100.ix.data_source | default('未知')) ~ (' · 盘面 ' ~ summary.ndx_bar_label if summary.ndx_bar_label else '')) }}
 <tr><td style="padding:0 30px;">
 <table class="m2" width="100%" cellpadding="0" cellspacing="0">
 <tr>
@@ -337,11 +337,14 @@
 <td width="50%" style="vertical-align:top;padding-left:8px;">
 <table width="100%" cellpadding="0" cellspacing="0">
 {{ kv('成交量', nasdaq100.vol_display) }}
-{{ kv('52 周区间', '%.2f – %.2f'|format(nasdaq100.ix.low_52w, nasdaq100.ix.high_52w)) }}
+{{ kv('52 周收盘区间', '%.2f – %.2f'|format(nasdaq100.ix.low_52w, nasdaq100.ix.high_52w)) }}
 {{ kv('52 周分位', '%.1f%%'|format(nasdaq100.pos52), None, True) }}
 </table>
 </td>
 </tr>
+<tr><td colspan="2" style="padding:9px 0 0;font-size:10px;color:{{ theme.ink_mute }};line-height:1.7;">
+本区块含两种口径：开盘价 / 前收盘 / 日内区间 / 成交量为 {{ summary.ndx_bar_label or '当日' }} 盘面快照；52 周收盘区间与分位为<b>收盘口径</b>{{ ('（截至 ' ~ summary.indicator_label ~ '）') if summary.indicator_label else '' }}，与本简报其余指标、历史回撤同源。
+</td></tr>
 </table>
 </td></tr>
 {% endif %}
@@ -370,7 +373,7 @@
 
 {% if nasdaq100 and sections.technical %}
 <!-- ══════════ 06 技术指标 ══════════ -->
-{{ sec('06', '技术指标') }}
+{{ sec('06', '技术指标', '收盘口径 · 截至 ' ~ (summary.indicator_label or '最近交易日') ~ ' · 与历史回撤同源') }}
 <tr><td style="padding:0 30px;">
 <div>
 <table class="mt" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12px;table-layout:fixed;width:100%;">
@@ -385,14 +388,14 @@
 <tr>
 <td class="mk" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">50 日均线</td>
 <td data-l="数值" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ '%.2f'|format(ix.ma_50) if ix.ma_50 else 'N/A' }}</td>
-<td data-l="信号" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('up') if ix.ma_50 and ix.current_price > ix.ma_50 else tone('down') }};">{{ ('▲ 上方' if ix.current_price > ix.ma_50 else '▼ 下方') if ix.ma_50 else '—' }}</td>
-<td data-l="含义" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('中期向上' if ix.current_price > ix.ma_50 else '中期向下') if ix.ma_50 else '—' }}</td>
+<td data-l="信号" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('up') if ix.ma_50 and ix.idx_close > ix.ma_50 else tone('down') }};">{{ ('▲ 上方' if ix.idx_close > ix.ma_50 else '▼ 下方') if ix.ma_50 else '—' }}</td>
+<td data-l="含义" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('中期向上' if ix.idx_close > ix.ma_50 else '中期向下') if ix.ma_50 else '—' }}</td>
 </tr>
 <tr>
 <td class="mk" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">200 日均线</td>
 <td data-l="数值" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ '%.2f'|format(ix.ma_200) if ix.ma_200 else 'N/A' }}</td>
-<td data-l="信号" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('up') if ix.ma_200 and ix.current_price > ix.ma_200 else tone('down') }};">{{ ('▲ 上方' if ix.current_price > ix.ma_200 else '▼ 下方') if ix.ma_200 else '—' }}</td>
-<td data-l="含义" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('长期向上' if ix.current_price > ix.ma_200 else '长期向下') if ix.ma_200 else '—' }}</td>
+<td data-l="信号" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('up') if ix.ma_200 and ix.idx_close > ix.ma_200 else tone('down') }};">{{ ('▲ 上方' if ix.idx_close > ix.ma_200 else '▼ 下方') if ix.ma_200 else '—' }}</td>
+<td data-l="含义" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('长期向上' if ix.idx_close > ix.ma_200 else '长期向下') if ix.ma_200 else '—' }}</td>
 </tr>
 <tr>
 <td class="mk" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">RSI (14)</td>
@@ -409,8 +412,8 @@
 <tr>
 <td class="mk" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">20 日均量</td>
 <td data-l="数值" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ ix.avg_vol_20|vol if ix.avg_vol_20 else 'N/A' }}</td>
-<td data-l="信号" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('▲ 放量' if ix.volume > ix.avg_vol_20 else '▼ 缩量') if ix.avg_vol_20 else '—' }}</td>
-<td data-l="含义" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('交投活跃' if ix.volume > ix.avg_vol_20 else '交投清淡') if ix.avg_vol_20 else '—' }}</td>
+<td data-l="信号" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('▲ 放量' if ix.vol_ref > ix.avg_vol_20 else '▼ 缩量') if ix.avg_vol_20 and ix.vol_ref else '—' }}</td>
+<td data-l="含义" style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('交投活跃' if ix.vol_ref > ix.avg_vol_20 else '交投清淡') if ix.avg_vol_20 and ix.vol_ref else '—' }}</td>
 </tr>
 </table>
 </div>
@@ -622,9 +625,10 @@
 <div style="border-top:1px solid {{ theme.line }};padding-top:16px;">
 <div style="font-size:10px;color:{{ theme.ink_mute }};line-height:1.9;">
 <b style="color:{{ theme.ink_soft }};">数据来源与口径</b><br>
-纳指历史回撤：{{ (etf_monitor.ndx_source ~ '（' ~ etf_monitor.ndx_count ~ ' 条日线）') if etf_monitor else '—' }} · 国内 ETF：腾讯财经行情 + 东方财富 T-1 净值<br>
+纳指历史回撤：{{ (etf_monitor.ndx_source ~ '（' ~ etf_monitor.ndx_count ~ ' 条日线' ~ ('，截至 ' ~ etf_monitor.dd_as_of_short if etf_monitor.dd_as_of_short else '') ~ '）') if etf_monitor else '—' }} · 国内 ETF：腾讯财经行情 + 东方财富 T-1 净值<br>
 指数行情：{{ nasdaq100.ix.data_source if nasdaq100 else '—' }} · 成分股：{{ nasdaq100.components_source if nasdaq100 else '—' }} · 全球回撤：{{ radar.data_source if radar else '—' }}<br>
-回撤 = 当前价 / 历史最高价 − 1 · 历史回撤分位基于 expanding-window，无未来数据泄露 · 溢价率基于 T-1 净值，非实时 IOPV<br>
+<b style="color:{{ theme.ink_soft }};">口径：</b>页头指数为 {{ summary.ndx_bar_label or '最新' }} 盘面价{{ '（盘中即实时价）' if summary.ndx_bar_label and '盘中' in summary.ndx_bar_label else '' }}；52 周收盘区间与分位、50/200 日均线、RSI、20 日均量、历史回撤等全部指标均为<b style="color:{{ theme.ink_soft }};">收盘口径</b>{{ ('（截至 ' ~ summary.indicator_label ~ '）') if summary.indicator_label else '' }}，同一封邮件内互不矛盾<br>
+回撤 = 当前收盘价 / 历史最高收盘价 − 1 · 历史回撤分位基于 expanding-window，无未来数据泄露 · 溢价率基于 T-1 净值，非实时 IOPV<br>
 {% if ai.analysis_sections or ai.commentary %}AI 解读由 DeepSeek 生成，仅作参考 · {% endif %}本简报不构成投资建议，投资决策请结合自身情况独立判断<br>
 生成时间 {{ meta.run_ts }}（北京时间） · 由 nasdaq-daily-brief 自动生成
 </div>

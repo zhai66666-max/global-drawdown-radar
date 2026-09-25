@@ -172,8 +172,14 @@ def collect_nasdaq100() -> dict:
     from src.providers.nasdaq100 import core
 
     ix = core.fetch_nasdaq100_data()
-    logger.info("  [nasdaq100] 指数 %s (%+.2f%%)",
-                f"{ix['current_price']:,.2f}", ix["change_pct"])
+    # 两个基准都打进日志：页头与 04 区块的盘面快照是实时值，
+    # 而 04 的 52 周区间/分位、06 技术指标、回撤一律走收盘口径。
+    # 之前排查「指数变了但回撤没动」就是靠这一行，别省。
+    logger.info("  [nasdaq100] 盘面 %s (%+.2f%%)｜指标基准 %s 收盘 %s%s",
+                f"{ix['current_price']:,.2f}", ix["change_pct"],
+                ix.get("idx_close_date") or "—",
+                f"{ix['idx_close']:,.2f}" if ix.get("idx_close") else "—",
+                "（已剔除盘中未收盘 bar）" if ix.get("intraday_dropped") else "")
 
     macro_raw = core.fetch_all_macro_indicators()
     macro = [core.score_macro_indicator(v) for v in macro_raw.values() if v]
