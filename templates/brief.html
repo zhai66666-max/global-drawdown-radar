@@ -1,0 +1,603 @@
+{%- macro tone(t) -%}
+{%- if t == 'up' -%}{{ ud.up }}
+{%- elif t == 'down' -%}{{ ud.down }}
+{%- elif t == 'watch' -%}{{ severity.watch }}
+{%- elif t == 'deep' -%}{{ severity.deep }}
+{%- elif t == 'extreme' -%}{{ severity.extreme }}
+{%- elif t == 'normal' -%}{{ severity.normal }}
+{%- else -%}{{ ud.flat }}{%- endif -%}
+{%- endmacro -%}
+
+{%- macro sec(num, title, note='') -%}
+<tr><td style="padding:28px 30px 10px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="border-bottom:2px solid {{ theme.line }};padding-bottom:9px;">
+<span style="font-size:11px;font-weight:700;color:{{ theme.accent }};letter-spacing:2px;">{{ num }}</span><span style="font-size:17px;font-weight:700;color:{{ theme.ink }};padding-left:9px;">{{ title }}</span>{% if note %}<span style="font-size:11px;color:{{ theme.ink_mute }};padding-left:9px;">{{ note }}</span>{% endif %}
+</td>
+</tr></table>
+</td></tr>
+{%- endmacro -%}
+
+{%- macro metric(label, value, sub='', color=None, bar=None) -%}
+<td width="25%" style="padding:0 5px 10px 5px;vertical-align:top;">
+<div style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:10px;padding:14px 12px;height:100%;">
+<div style="font-size:10px;color:{{ theme.ink_mute }};letter-spacing:0.5px;margin-bottom:6px;">{{ label }}</div>
+<div style="font-size:21px;font-weight:700;color:{{ color or theme.ink }};line-height:1.15;">{{ value }}</div>
+{% if sub %}<div style="font-size:10px;color:{{ theme.ink_soft }};margin-top:5px;line-height:1.5;">{{ sub }}</div>{% endif %}
+{% if bar is not none %}
+<div style="margin-top:7px;background:{{ theme.line }};border-radius:3px;height:4px;width:100%;"><div style="background:{{ color or theme.accent }};border-radius:3px;height:4px;width:{{ '%.0f'|format(bar) }}%;"></div></div>
+{% endif %}
+</div>
+</td>
+{%- endmacro -%}
+
+{%- macro kv(label, value, color=None, strong=False) -%}
+<tr>
+<td style="padding:7px 0;font-size:13px;color:{{ theme.ink_soft }};border-bottom:1px solid {{ theme.line }};">{{ label }}</td>
+<td style="padding:7px 0;font-size:13px;text-align:right;border-bottom:1px solid {{ theme.line }};{% if strong %}font-weight:700;{% endif %}color:{{ color or theme.ink }};">{{ value }}</td>
+</tr>
+{%- endmacro -%}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{ brand.title }} · {{ meta.date }}</title>
+</head>
+<body style="margin:0;padding:0;background:{{ theme.page_bg }};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.page_bg }};table-layout:fixed;">
+<tr><td align="center" style="padding:22px 10px;">
+
+<table width="720" cellpadding="0" cellspacing="0" style="width:100%;max-width:720px;margin:0 auto;background:{{ theme.card_bg }};border-radius:14px;overflow:hidden;border:1px solid {{ theme.line }};table-layout:fixed;">
+
+<!-- ══════════ 头部 ══════════ -->
+<tr>
+<td style="background-color:{{ theme.header_to }};background-image:linear-gradient(135deg,{{ theme.header_from }} 0%,{{ theme.header_to }} 100%);padding:30px 30px 24px;">
+<div style="font-size:11px;letter-spacing:3.5px;color:rgba(255,255,255,0.5);margin-bottom:9px;">{{ brand.subtitle }}</div>
+<div style="font-size:25px;font-weight:700;color:#ffffff;line-height:1.25;">{{ brand.title }}</div>
+<div style="font-size:12px;color:rgba(255,255,255,0.62);margin-top:7px;">{{ meta.date_cn }} {{ meta.weekday }} · 生成于 {{ meta.run_ts }}（北京时间）</div>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;">
+<tr>
+<td style="vertical-align:bottom;">
+<div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.45);margin-bottom:4px;">纳斯达克100</div>
+<div style="font-size:40px;font-weight:700;color:#ffffff;line-height:1.0;letter-spacing:-1px;">{{ summary.ndx_price }}</div>
+</td>
+<td style="vertical-align:bottom;text-align:right;">
+<div style="display:inline-block;padding:8px 16px;border-radius:20px;background:rgba(255,255,255,0.12);">
+<span style="font-size:15px;font-weight:700;color:{{ summary.ndx_change_color }};">{{ summary.ndx_change }}（{{ summary.ndx_change_pct }}）</span>
+</div>
+</td>
+</tr>
+</table>
+
+<div style="font-size:11px;color:rgba(255,255,255,0.42);margin-top:16px;border-top:1px solid rgba(255,255,255,0.12);padding-top:12px;">{{ brand.tagline }}</div>
+</td>
+</tr>
+
+{% if headline %}
+<!-- ══════════ 今日一句话 ══════════ -->
+<tr>
+<td style="padding:20px 30px 0;">
+<div style="background:{{ theme.panel }};border-left:3px solid {{ theme.accent }};border-radius:0 10px 10px 0;padding:14px 18px;">
+<div style="font-size:10px;letter-spacing:1.5px;color:{{ theme.ink_mute }};margin-bottom:6px;">今日一句话</div>
+<div style="font-size:14px;line-height:1.75;color:{{ theme.ink }};">{{ headline }}</div>
+</div>
+</td>
+</tr>
+{% endif %}
+
+<!-- ══════════ 核心四项 ══════════ -->
+<tr>
+<td style="padding:20px 25px 8px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+{% if etf_monitor %}
+{{ metric('纳指历史回撤', summary.hist_dd_display, summary.hist_emoji ~ ' ' ~ summary.hist_level ~ ' · 分位 ' ~ ('%.0f'|format(summary.hist_percentile)) ~ '%', tone('down')) }}
+{{ metric('场内最低 ETF 溢价', summary.best_premium_display, (summary.best_emoji ~ ' ' ~ summary.best_etf_label ~ ('' if summary.premium_ok else ' · 高于 ' ~ thresholds.etf_premium_ok ~ '% 上限')), tone('up') if summary.premium_ok else severity.watch) }}
+{% else %}
+{{ metric('纳指历史回撤', '—', '数据源未就绪') }}
+{{ metric('最低 ETF 溢价', '—', '数据源未就绪') }}
+{% endif %}
+
+{% if summary.qqq_alert %}
+{{ metric('QQQ 回撤档位', summary.qqq_alert.badge or '正常定投', summary.qqq_alert.title ~ ' · 回撤进度', tone(summary.qqq_alert.tone), summary.qqq_alert.progress) }}
+{% elif etf_monitor %}
+{{ metric('加仓条件', '已满足' if summary.add_satisfied else '未满足', summary.matrix_signal or '继续观察', tone('normal') if summary.add_satisfied else ud.flat) }}
+{% else %}
+{{ metric('加仓条件', '—', '数据源未就绪') }}
+{% endif %}
+
+{% if radar %}
+{{ metric('全球深度回撤', summary.global_deep ~ ' / ' ~ summary.global_total, '历史级 ' ~ summary.global_historic ~ ' 个 · 新信号 ' ~ summary.global_alerts ~ ' 条', severity.deep if summary.global_deep else severity.normal) }}
+{% else %}
+{{ metric('全球深度回撤', '—', '数据源未就绪') }}
+{% endif %}
+</tr></table>
+</td>
+</tr>
+
+{% if sections.toc and toc %}
+<!-- ══════════ 目录 ══════════ -->
+<tr>
+<td style="padding:6px 30px 0;">
+<div style="font-size:10px;letter-spacing:1.5px;color:{{ theme.ink_mute }};margin-bottom:8px;">本期目录</div>
+<div style="font-size:12px;line-height:2.0;color:{{ theme.ink_soft }};">
+{% for anchor, label in toc %}<span style="display:inline-block;margin-right:16px;white-space:nowrap;">{{ label }}</span>{% endfor %}
+</div>
+</td>
+</tr>
+{% endif %}
+
+{% if errors %}
+<!-- ══════════ 采集异常提示 ══════════ -->
+<tr>
+<td style="padding:14px 30px 0;">
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;">
+<div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:5px;">部分数据源本次未取到，相关区块已降级显示</div>
+{% for e in errors %}<div style="font-size:11px;color:#92400e;line-height:1.7;">· {{ e.label }}：{{ e.error }}</div>{% endfor %}
+</div>
+</td>
+</tr>
+{% endif %}
+
+{% if etf_monitor and sections.action %}
+<!-- ══════════ 01 加仓决策 ══════════ -->
+{{ sec('01', '加仓决策', '纳指历史回撤 × 国内 ETF 溢价') }}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:12px;">
+<tr><td style="padding:16px 20px;">
+<div style="font-size:15px;font-weight:700;color:{{ theme.ink }};margin-bottom:12px;">
+{% if summary.add_satisfied %}满足预设加仓条件{% else %}未满足加仓条件，继续观察{% endif %}
+{% if summary.matrix_signal %}<span style="display:inline-block;margin-left:10px;padding:3px 12px;border-radius:10px;font-size:12px;background:{{ theme.card_bg }};border:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">{{ summary.matrix_signal }}</span>{% endif %}
+</div>
+
+<div style="font-size:13px;line-height:2.0;color:{{ theme.ink_soft }};">
+{% if etf_monitor.dd.current_drawdown <= -10 %}
+纳指已进入{% if etf_monitor.dd.current_drawdown <= -30 %}极端{% elif etf_monitor.dd.current_drawdown <= -20 %}重大{% elif etf_monitor.dd.current_drawdown <= -15 %}较大{% else %}中等{% endif %}历史回撤区间（{{ etf_monitor.dd.level.emoji }} {{ etf_monitor.dd.level.label }}）
+{% else %}
+纳指当前处于{{ etf_monitor.dd.level.emoji }} {{ etf_monitor.dd.level.label }}，未进入历史加仓区间
+{% endif %}
+<br>
+{% if etf_monitor.signal.premium_ok %}场内存在溢价 ≤ {{ thresholds.etf_premium_ok }}% 的 ETF，价格合理：<b style="color:{{ theme.ink }};">{{ etf_monitor.best_label }} {{ etf_monitor.best_premium_display }}</b>
+{% else %}暂无溢价 ≤ {{ thresholds.etf_premium_ok }}% 的场内 ETF{% endif %}
+</div>
+
+{% if etf_monitor.recommendations %}
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:14px;">
+<tr>
+{% for r in etf_monitor.recommendations %}
+<td style="padding:0 4px;vertical-align:top;">
+<div style="background:{{ theme.card_bg }};border:1px solid {{ theme.line }};border-radius:9px;padding:11px 10px;text-align:center;">
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-bottom:4px;">{{ r.label }}</div>
+<div style="font-size:14px;font-weight:700;color:{{ theme.ink }};">{{ r.code }}</div>
+<div style="font-size:10px;color:{{ theme.ink_soft }};margin-top:2px;">{{ r.short_name }}</div>
+<div style="font-size:15px;font-weight:700;margin-top:6px;color:{{ tone('up') if r.premium <= thresholds.etf_premium_ok else severity.watch }};">{{ '%+.2f'|format(r.premium) }}%</div>
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:2px;">{{ r.emoji }} 溢价</div>
+</div>
+</td>
+{% endfor %}
+</tr>
+</table>
+{% endif %}
+</td></tr>
+</table>
+</td></tr>
+{% endif %}
+
+{% if nasdaq100 and summary.qqq_alert and sections.action %}
+<tr><td style="padding:14px 30px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:12px;">
+<tr><td style="padding:16px 20px;">
+<div style="font-size:15px;font-weight:700;color:{{ tone(summary.qqq_alert.tone) }};margin-bottom:8px;">
+{{ summary.qqq_alert.title }}{% if summary.qqq_alert.badge %}<span style="display:inline-block;margin-left:10px;padding:3px 12px;border-radius:10px;font-size:12px;background:{{ tone(summary.qqq_alert.tone) }};color:#ffffff;">{{ summary.qqq_alert.badge }}</span>{% endif %}
+</div>
+<div style="font-size:13px;line-height:1.8;color:{{ theme.ink_soft }};">{{ summary.qqq_alert.msg }}</div>
+<div style="margin-top:12px;background:{{ theme.line }};border-radius:6px;height:10px;width:100%;">
+<div style="background:{{ tone(summary.qqq_alert.tone) }};border-radius:6px;height:10px;width:{{ '%.0f'|format(summary.qqq_alert.progress) }}%;"></div>
+</div>
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:5px;">0% ······ {{ '%.0f'|format(thresholds.qqq_add_2x) }}%（2x）······ {{ '%.0f'|format(thresholds.qqq_add_5x) }}%（5x）······ 30%+</div>
+</td></tr>
+</table>
+</td></tr>
+{% endif %}
+
+{% if etf_monitor and sections.drawdown_stats %}
+<!-- ══════════ 02 纳指历史回撤统计 ══════════ -->
+{{ sec('02', '纳指历史回撤统计', etf_monitor.ndx_source ~ ' · ' ~ etf_monitor.ndx_count ~ ' 条日线') }}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="50%" style="vertical-align:top;padding-right:8px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+{{ kv('当前历史回撤', '%.2f%%'|format(etf_monitor.dd.current_drawdown), tone('down'), True) }}
+{{ kv('历史分位', '%.0f%%'|format(etf_monitor.dd.percentile)) }}
+{{ kv('当前回撤等级', etf_monitor.dd.level.emoji ~ ' ' ~ etf_monitor.dd.level.label) }}
+{{ kv('当前历史最高收盘', '%.2f'|format(etf_monitor.dd.current_peak)) }}
+</table>
+</td>
+<td width="50%" style="vertical-align:top;padding-left:8px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+{{ kv('历史最大回撤', '%.2f%%'|format(etf_monitor.dd.max_dd.max_drawdown), '#dc2626', True) }}
+{{ kv('最大回撤区间', etf_monitor.dd.max_dd.peak_date ~ ' → ' ~ etf_monitor.dd.max_dd.bottom_date) }}
+{{ kv('恢复日期', etf_monitor.dd.max_dd.recovery_date or '尚未恢复') }}
+{{ kv('回撤持续天数', (etf_monitor.dd.max_dd.duration_days|string ~ ' 天') if etf_monitor.dd.max_dd.duration_days is not none else '—') }}
+</table>
+</td>
+</tr>
+</table>
+{% if etf_monitor.dd.recent_thresholds %}
+<div style="margin-top:12px;background:{{ theme.panel }};border-radius:10px;padding:12px 16px;">
+<div style="font-size:11px;color:{{ theme.ink_mute }};margin-bottom:6px;">最近一次跌破各阈值</div>
+<div style="font-size:12px;color:{{ theme.ink_soft }};line-height:1.9;">
+{% for th, dt in etf_monitor.dd.recent_thresholds.items() %}<span style="display:inline-block;margin-right:18px;white-space:nowrap;">{{ th }}%：<b style="color:{{ theme.ink }};">{{ dt }}</b></span>{% endfor %}
+</div>
+</div>
+{% endif %}
+</td></tr>
+{% endif %}
+
+{% if etf_monitor and sections.etf_ranking %}
+<!-- ══════════ 03 国内纳指 ETF 溢价排名 ══════════ -->
+{{ sec('03', '国内纳指 ETF 溢价排名', etf_monitor.data_status) }}
+<tr><td style="padding:0 30px;">
+<div>
+<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12px;table-layout:fixed;width:100%;">
+<colgroup>
+<col style="width:6%;"><col style="width:25%;"><col style="width:13%;">
+<col style="width:14%;"><col style="width:13%;"><col style="width:15%;"><col style="width:14%;">
+</colgroup>
+<tr style="background:{{ theme.panel }};">
+<th style="padding:9px 8px;text-align:left;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">#</th>
+<th style="padding:9px 8px;text-align:left;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">ETF</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">价格</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">溢价率</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">涨跌</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">成交额</th>
+<th style="padding:9px 8px;text-align:center;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">状态</th>
+</tr>
+{% for e in etf_monitor.ranked %}
+<tr>
+<td style="padding:8px;font-size:12px;color:{{ theme.ink_mute }};border-bottom:1px solid {{ theme.line }};">{{ loop.index }}</td>
+<td style="padding:8px;font-size:12px;color:{{ theme.ink }};border-bottom:1px solid {{ theme.line }};"><b>{{ e.code }}</b> <span style="color:{{ theme.ink_soft }};">{{ e.short_name }}</span></td>
+<td style="padding:8px;font-size:12px;text-align:right;color:{{ theme.ink_soft }};border-bottom:1px solid {{ theme.line }};">{{ e.price_display }}</td>
+<td style="padding:8px;font-size:12px;text-align:right;font-weight:700;color:{{ tone('up') if e.premium <= thresholds.etf_premium_ok else severity.watch }};border-bottom:1px solid {{ theme.line }};">{{ e.premium_display }}</td>
+<td style="padding:8px;font-size:12px;text-align:right;color:{{ e.change_color }};border-bottom:1px solid {{ theme.line }};">{{ e.change_display }}</td>
+<td style="padding:8px;font-size:12px;text-align:right;color:{{ theme.ink_soft }};border-bottom:1px solid {{ theme.line }};">{{ e.amount_display }}{% if e.low_liquidity %} <span style="color:{{ severity.watch }};">⚠</span>{% endif %}</td>
+<td style="padding:8px;font-size:11px;text-align:center;color:{{ theme.ink_soft }};border-bottom:1px solid {{ theme.line }};">{{ e.premium_level.emoji }} {{ e.premium_level.label }}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:8px;line-height:1.7;">
+溢价基准：{{ etf_monitor.basis_label }}（免费数据源无可靠实时 IOPV，使用 T-1 净值计算并如实标注）· ⚠ = 流动性偏低（成交额低于 1000 万）
+</div>
+{% if etf_monitor.failed_etfs %}
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:4px;">
+{% for f in etf_monitor.failed_etfs %}· {{ f.code }} {{ f.name }} 本次未取到数据{% endfor %}
+</div>
+{% endif %}
+</td></tr>
+{% endif %}
+
+{% if nasdaq100 and sections.index_overview %}
+<!-- ══════════ 04 纳指市场概况 ══════════ -->
+{{ sec('04', '纳指市场概况', '纳斯达克100 指数 · 数据源 ' ~ (nasdaq100.ix.data_source | default('未知'))) }}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="50%" style="vertical-align:top;padding-right:8px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+{{ kv('开盘价', '%.2f'|format(nasdaq100.ix.open) if nasdaq100.ix.open else 'N/A') }}
+{{ kv('前收盘', '%.2f'|format(nasdaq100.ix.prev_close)) }}
+{{ kv('日内区间', '%.2f – %.2f'|format(nasdaq100.ix.day_low, nasdaq100.ix.day_high)) }}
+</table>
+</td>
+<td width="50%" style="vertical-align:top;padding-left:8px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+{{ kv('成交量', nasdaq100.vol_display) }}
+{{ kv('52 周区间', '%.2f – %.2f'|format(nasdaq100.ix.low_52w, nasdaq100.ix.high_52w)) }}
+{{ kv('52 周分位', '%.1f%%'|format(nasdaq100.pos52), None, True) }}
+</table>
+</td>
+</tr>
+</table>
+</td></tr>
+{% endif %}
+
+{% if nasdaq100 and sections.macro %}
+<!-- ══════════ 05 宏观指标仪表盘 ══════════ -->
+{{ sec('05', '宏观指标仪表盘', '总分 ' ~ nasdaq100.total_score ~ '/' ~ nasdaq100.total_max ~ '（' ~ nasdaq100.total_pct ~ '%）' ~ ('' if nasdaq100.macro_complete else ' · 仅 ' ~ nasdaq100.macro_available ~ '/' ~ nasdaq100.macro_expected ~ ' 项数据可用，总分口径随之变化')) }}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+{% for m in nasdaq100.macro %}
+{% if loop.index0 % 3 == 0 %}<tr>{% endif %}
+<td width="33%" style="padding:0 5px 10px 5px;vertical-align:top;">
+<div style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:10px;padding:13px 10px;text-align:center;">
+<div style="font-size:10px;letter-spacing:0.5px;color:{{ theme.ink_mute }};">{{ m.name }}</div>
+<div style="font-size:19px;font-weight:700;color:{{ theme.ink }};margin-top:3px;">{{ '%.2f'|format(m.price) }}</div>
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:2px;">回撤 {{ ('%+.2f'|format(m.drawdown_pct) ~ '%') if m.drawdown_pct is not none else '—（兜底源无历史）' }}</div>
+<div style="font-size:12px;font-weight:700;margin-top:7px;color:{{ severity.normal if m.score_pct >= 70 else (severity.watch if m.score_pct >= 40 else severity.extreme) }};">{{ m.score }}/{{ m.max_score }} 分</div>
+<div style="margin-top:5px;background:{{ theme.line }};border-radius:3px;height:4px;"><div style="background:{{ severity.normal if m.score_pct >= 70 else (severity.watch if m.score_pct >= 40 else severity.extreme) }};border-radius:3px;height:4px;width:{{ m.score_pct }}%;"></div></div>
+</div>
+</td>
+{% if loop.index % 3 == 0 or loop.last %}</tr>{% endif %}
+{% endfor %}
+</table>
+</td></tr>
+{% endif %}
+
+{% if nasdaq100 and sections.technical %}
+<!-- ══════════ 06 技术指标 ══════════ -->
+{{ sec('06', '技术指标') }}
+<tr><td style="padding:0 30px;">
+<div>
+<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12px;table-layout:fixed;width:100%;">
+<colgroup><col style="width:24%;"><col style="width:20%;"><col style="width:20%;"><col style="width:36%;"></colgroup>
+<tr style="background:{{ theme.panel }};">
+<th style="padding:9px 10px;text-align:left;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">指标</th>
+<th style="padding:9px 10px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">数值</th>
+<th style="padding:9px 10px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">信号</th>
+<th style="padding:9px 10px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">含义</th>
+</tr>
+{% set ix = nasdaq100.ix %}
+<tr>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">50 日均线</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ '%.2f'|format(ix.ma_50) if ix.ma_50 else 'N/A' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('up') if ix.ma_50 and ix.current_price > ix.ma_50 else tone('down') }};">{{ ('▲ 上方' if ix.current_price > ix.ma_50 else '▼ 下方') if ix.ma_50 else '—' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('中期向上' if ix.current_price > ix.ma_50 else '中期向下') if ix.ma_50 else '—' }}</td>
+</tr>
+<tr>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">200 日均线</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ '%.2f'|format(ix.ma_200) if ix.ma_200 else 'N/A' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('up') if ix.ma_200 and ix.current_price > ix.ma_200 else tone('down') }};">{{ ('▲ 上方' if ix.current_price > ix.ma_200 else '▼ 下方') if ix.ma_200 else '—' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('长期向上' if ix.current_price > ix.ma_200 else '长期向下') if ix.ma_200 else '—' }}</td>
+</tr>
+<tr>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">RSI (14)</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ '%.1f'|format(ix.rsi) if ix.rsi else 'N/A' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;"><span style="font-size:11px;font-weight:700;color:{{ nasdaq100.rsi_color }};">{{ nasdaq100.rsi_label }}</span></td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('短期过热' if ix.rsi and ix.rsi > 70 else '短期超跌' if ix.rsi and ix.rsi < 30 else '动能正常') if ix.rsi else '—' }}</td>
+</tr>
+<tr>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">52 周分位</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ '%.1f%%'|format(nasdaq100.pos52) }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ tone('down') if nasdaq100.pos52 > 80 else (tone('up') if nasdaq100.pos52 < 20 else severity.watch) }};">{{ '高位' if nasdaq100.pos52 > 80 else ('低位' if nasdaq100.pos52 < 20 else '中位') }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ '接近高点' if nasdaq100.pos52 > 80 else ('接近低点' if nasdaq100.pos52 < 20 else '区间中部') }}</td>
+</tr>
+<tr>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};color:{{ theme.ink_soft }};">20 日均量</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;font-weight:700;color:{{ theme.ink }};">{{ ix.avg_vol_20|vol if ix.avg_vol_20 else 'N/A' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('▲ 放量' if ix.volume > ix.avg_vol_20 else '▼ 缩量') if ix.avg_vol_20 else '—' }}</td>
+<td style="padding:9px 10px;border-bottom:1px solid {{ theme.line }};text-align:right;color:{{ theme.ink_mute }};">{{ ('交投活跃' if ix.volume > ix.avg_vol_20 else '交投清淡') if ix.avg_vol_20 else '—' }}</td>
+</tr>
+</table>
+</div>
+</td></tr>
+{% endif %}
+
+{% if nasdaq100 and sections.verdict %}
+<!-- ══════════ 07 综合研判 ══════════ -->
+{{ sec('07', '综合研判', '广度 ' ~ nasdaq100.breadth.up ~ ':' ~ nasdaq100.breadth.down) }}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:12px;overflow:hidden;">
+<tr><td style="padding:13px 18px;border-bottom:1px solid {{ theme.line }};">
+<span style="font-size:14px;font-weight:700;color:{{ theme.ink }};">综合评分</span>
+<span style="display:inline-block;margin-left:10px;padding:3px 12px;border-radius:10px;font-size:12px;font-weight:700;color:{{ tone(nasdaq100.overall_tone) }};background:{{ theme.card_bg }};border:1px solid {{ theme.line }};">{{ nasdaq100.overall_label }} · {{ nasdaq100.total_pct }} 分</span>
+</td></tr>
+{% for r in nasdaq100.verdict_rows %}
+<tr><td style="padding:11px 18px;{% if not loop.last %}border-bottom:1px solid {{ theme.line }};{% endif %}">
+<div style="font-size:13px;line-height:1.7;"><span style="font-weight:700;color:{{ theme.ink }};">{{ r.label }}</span> <span style="color:{{ theme.ink_soft }};">— {{ r.text }}</span></div>
+</td></tr>
+{% endfor %}
+</table>
+</td></tr>
+{% endif %}
+
+{% if nasdaq100 and sections.movers %}
+<!-- ══════════ 08 成分股涨跌榜 ══════════ -->
+{{ sec('08', '成分股涨跌榜', '纳斯达克100 权重股') }}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0"><tr>
+<td width="50%" style="vertical-align:top;padding-right:7px;">
+<div style="font-size:12px;font-weight:700;color:{{ tone('up') }};margin-bottom:7px;">涨幅前五</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border-radius:9px;overflow:hidden;font-size:12px;">
+{% for g in nasdaq100.gainers %}
+<tr>
+<td style="padding:7px 10px;font-weight:700;color:{{ theme.ink }};border-bottom:1px solid {{ theme.line }};">{{ g.symbol }}</td>
+<td style="padding:7px 10px;text-align:right;color:{{ theme.ink_soft }};border-bottom:1px solid {{ theme.line }};">${{ '%.2f'|format(g.price) }}</td>
+<td style="padding:7px 10px;text-align:right;font-weight:700;color:{{ tone('up') }};border-bottom:1px solid {{ theme.line }};">+{{ '%.2f'|format(g.change_pct) }}%</td>
+</tr>
+{% else %}
+<tr><td style="padding:12px;text-align:center;color:{{ theme.ink_mute }};">暂无数据</td></tr>
+{% endfor %}
+</table>
+</td>
+<td width="50%" style="vertical-align:top;padding-left:7px;">
+<div style="font-size:12px;font-weight:700;color:{{ tone('down') }};margin-bottom:7px;">跌幅前五</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border-radius:9px;overflow:hidden;font-size:12px;">
+{% for l in nasdaq100.losers %}
+<tr>
+<td style="padding:7px 10px;font-weight:700;color:{{ theme.ink }};border-bottom:1px solid {{ theme.line }};">{{ l.symbol }}</td>
+<td style="padding:7px 10px;text-align:right;color:{{ theme.ink_soft }};border-bottom:1px solid {{ theme.line }};">${{ '%.2f'|format(l.price) }}</td>
+<td style="padding:7px 10px;text-align:right;font-weight:700;color:{{ tone('down') }};border-bottom:1px solid {{ theme.line }};">{{ '%.2f'|format(l.change_pct) }}%</td>
+</tr>
+{% else %}
+<tr><td style="padding:12px;text-align:center;color:{{ theme.ink_mute }};">暂无数据</td></tr>
+{% endfor %}
+</table>
+</td>
+</tr></table>
+
+<div style="font-size:12px;font-weight:700;color:{{ theme.ink }};margin:16px 0 7px;">成交最活跃</div>
+<div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border-radius:9px;overflow:hidden;font-size:12px;table-layout:fixed;width:100%;">
+<colgroup><col style="width:14%;"><col style="width:33%;"><col style="width:18%;"><col style="width:18%;"><col style="width:17%;"></colgroup>
+<tr style="background:{{ theme.card_bg }};">
+<td style="padding:7px 10px;font-size:10px;color:{{ theme.ink_mute }};">代码</td>
+<td style="padding:7px 10px;font-size:10px;color:{{ theme.ink_mute }};">名称</td>
+<td style="padding:7px 10px;font-size:10px;color:{{ theme.ink_mute }};text-align:right;">价格</td>
+<td style="padding:7px 10px;font-size:10px;color:{{ theme.ink_mute }};text-align:right;">涨跌</td>
+<td style="padding:7px 10px;font-size:10px;color:{{ theme.ink_mute }};text-align:right;">成交量</td>
+</tr>
+{% for a in nasdaq100.most_active %}
+<tr>
+<td style="padding:7px 10px;font-weight:700;color:{{ theme.ink }};border-top:1px solid {{ theme.line }};">{{ a.symbol }}</td>
+<td style="padding:7px 10px;color:{{ theme.ink_soft }};border-top:1px solid {{ theme.line }};">{{ a.name[:18] }}</td>
+<td style="padding:7px 10px;text-align:right;color:{{ theme.ink_soft }};border-top:1px solid {{ theme.line }};">${{ '%.2f'|format(a.price) }}</td>
+<td style="padding:7px 10px;text-align:right;font-weight:700;color:{{ a.change_color }};border-top:1px solid {{ theme.line }};">{{ a.change_display }}</td>
+<td style="padding:7px 10px;text-align:right;color:{{ theme.ink_soft }};border-top:1px solid {{ theme.line }};">{{ a.volume|vol }}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+</td></tr>
+{% endif %}
+
+{% if radar and sections.global_table %}
+<!-- ══════════ 09 全球市场横向对比 ══════════ -->
+{{ sec('09', '全球市场横向对比', radar.summary.total ~ ' 个资产 · 回撤口径为各资产自身全部历史') }}
+<tr><td style="padding:0 30px;">
+<div style="border:1px solid {{ theme.line }};border-radius:10px;overflow:hidden;">
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12px;table-layout:fixed;width:100%;">
+<colgroup>
+<col style="width:25%;"><col style="width:14%;"><col style="width:13%;">
+<col style="width:16%;"><col style="width:10%;"><col style="width:22%;">
+</colgroup>
+<tr style="background:{{ theme.panel }};">
+<th style="padding:9px 8px;text-align:left;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">资产</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">最新价</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">昨日</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.accent }};border-bottom:2px solid {{ theme.line }};">历史回撤</th>
+<th style="padding:9px 8px;text-align:right;font-size:11px;color:{{ theme.accent }};border-bottom:2px solid {{ theme.line }};">分位</th>
+<th style="padding:9px 8px;text-align:center;font-size:11px;color:{{ theme.ink_soft }};border-bottom:2px solid {{ theme.line }};">状态</th>
+</tr>
+{% for r in radar.rows %}
+<tr>
+<td style="padding:9px 8px 2px;border-bottom:none;">
+<div style="font-weight:700;color:{{ theme.ink }};font-size:12.5px;">{{ r.ticker }}</div>
+<div style="font-size:10px;color:{{ theme.ink_mute }};line-height:1.4;">{{ r.name_cn }}</div>
+</td>
+<td style="padding:9px 8px 2px;text-align:right;font-weight:700;color:{{ theme.ink }};border-bottom:none;">{{ r.price_display }}</td>
+<td style="padding:9px 8px 2px;text-align:right;font-weight:700;color:{{ r.change_color }};border-bottom:none;">{{ r.change_display }}</td>
+<td style="padding:9px 8px 2px;text-align:right;font-weight:700;color:{{ r.status_color }};border-bottom:none;">{{ r.dd_historical_display }}</td>
+<td style="padding:9px 8px 2px;text-align:right;font-weight:700;color:{{ theme.ink }};border-bottom:none;">{{ r.dd_percentile_display }}</td>
+<td style="padding:9px 8px 2px;text-align:center;border-bottom:none;"><span style="font-size:11px;font-weight:700;color:{{ r.status_color }};">{{ r.status_emoji }} {{ r.status_label }}</span></td>
+</tr>
+<tr>
+<td colspan="6" style="padding:2px 8px 9px;font-size:10px;color:{{ theme.ink_mute }};line-height:1.6;border-bottom:1px solid {{ theme.line }};">
+52周回撤 <b>{{ r.dd_52w_display }}</b>（最大 {{ r.max_dd_52w_display }}）· 5年回撤 <b>{{ r.dd_5y_display }}</b> · 历史最大 <b>{{ r.max_dd_historical_display }}</b> · 20日波动 <b>{{ r.vol_20d_display }}</b> · 距高点 <b>{{ r.dist_from_ath_display }}</b>（{{ r.days_display }}）
+</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+<div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:8px;line-height:1.7;">
+长期回撤使用复权价格（Adj Close），最新价使用未复权收盘价 · 分位数基于 expanding-window 计算，无未来数据泄露
+</div>
+</td></tr>
+{% endif %}
+
+{% if radar and sections.global_watch %}
+<!-- ══════════ 10 全球重点观察 ══════════ -->
+{{ sec('10', '全球重点观察', '回撤最深的三个市场') }}
+<tr><td style="padding:0 30px;">
+{% for m in radar.summary.worst_dd %}
+<div style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-left:3px solid {{ m.status_color }};border-radius:0 10px 10px 0;padding:13px 16px;margin-bottom:9px;">
+<div style="font-size:14px;font-weight:700;color:{{ theme.ink }};">{{ m.status_emoji }} {{ m.ticker }}｜{{ m.name_cn }}</div>
+<div style="font-size:12px;color:{{ theme.ink_soft }};margin-top:6px;line-height:1.7;">
+当前历史回撤 <b style="color:{{ m.status_color }};">{{ '%.1f%%'|format(m.dd_historical * 100) }}</b>
+{% if m.dd_percentile %} · 历史分位 <b style="color:{{ theme.ink }};">{{ '%.0f%%'|format(m.dd_percentile) }}</b>{% endif %}
+{% if m.max_dd_historical %} · 历史最大回撤 <b>{{ '%.1f%%'|format(m.max_dd_historical * 100) }}</b>{% endif %}
+</div>
+<div style="font-size:11px;color:{{ theme.ink_mute }};margin-top:5px;">
+{% if m.dd_percentile and m.dd_percentile >= 95 %}分位 {{ '%.0f'|format(m.dd_percentile) }}% —— 当前回撤在其自身历史上属极端罕见区间。
+{% elif m.dd_percentile and m.dd_percentile >= 85 %}分位 {{ '%.0f'|format(m.dd_percentile) }}% —— 当前回撤高于其历史上约 {{ '%.0f'|format(m.dd_percentile) }}% 的交易日。
+{% elif m.dd_percentile and m.dd_percentile >= 70 %}分位 {{ '%.0f'|format(m.dd_percentile) }}% —— 当前回撤高于其历史中位数水平。
+{% elif m.dd_percentile %}分位 {{ '%.0f'|format(m.dd_percentile) }}% —— 该资产历史上经历过更深的回撤，当前幅度在其自身历史中属较常见区间（幅度本身仍需按上组数字判断）。
+{% else %}历史分位数据不足。
+{% endif %}
+</div>
+</div>
+{% else %}
+<div style="font-size:13px;color:{{ theme.ink_mute }};">今日无特别突出的回撤信号。</div>
+{% endfor %}
+</td></tr>
+{% endif %}
+
+{% if radar and sections.global_alerts %}
+<!-- ══════════ 11 全球回撤新信号 ══════════ -->
+{{ sec('11', '全球回撤新信号', '阈值 ' ~ (radar.rows|length and '20% / 30% / 40%' or '')) }}
+<tr><td style="padding:0 30px;">
+{% for a in radar.alerts %}
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:13px 16px;margin-bottom:9px;">
+<div style="font-size:13px;font-weight:700;color:{{ theme.ink }};">
+{% if a.threshold >= 0.40 %}🔴{% elif a.threshold >= 0.30 %}🟠{% else %}🟡{% endif %}
+{{ a.ticker }}｜{{ a.name_cn }} 首次进入 -{{ '%.0f'|format(a.threshold * 100) }}% 回撤区间
+</div>
+<div style="font-size:12px;color:{{ theme.ink_soft }};margin-top:5px;">
+当前历史回撤 <b style="color:{{ severity.extreme }};">-{{ '%.1f%%'|format(a.current_dd * 100) }}</b>
+{% if a.dd_percentile %} · 历史分位 {{ '%.0f%%'|format(a.dd_percentile) }}{% endif %}
+</div>
+</div>
+{% else %}
+<div style="font-size:13px;color:{{ theme.ink_mute }};">今日没有新的深度回撤信号。</div>
+{% endfor %}
+{% if radar.errors %}
+<div style="font-size:11px;color:{{ theme.ink_mute }};margin-top:6px;line-height:1.7;">
+{% for t, e in radar.errors.items() %}· {{ t }} 本次数据获取失败，未更新{% endfor %}
+</div>
+{% endif %}
+</td></tr>
+{% endif %}
+
+{% if sections.ai and (ai.analysis_sections or ai.commentary) %}
+<!-- ══════════ 12 AI 深度分析 ══════════ -->
+{{ sec('12', 'AI 深度分析', 'DeepSeek · ' ~ (ai.analysis_sections|length) ~ ' 个小节') }}
+{% if ai.commentary %}
+<tr><td style="padding:0 30px 10px;">
+<div style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:12px;padding:15px 18px;">
+<div style="font-size:13px;font-weight:700;color:{{ theme.ink }};margin-bottom:7px;">全球市场概览</div>
+<div style="font-size:13px;line-height:1.8;color:{{ theme.ink_soft }};white-space:pre-wrap;">{{ ai.commentary }}</div>
+</div>
+</td></tr>
+{% endif %}
+{% if ai.analysis_sections %}
+<tr><td style="padding:0 30px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-radius:12px;overflow:hidden;">
+{% for s in ai.analysis_sections %}
+<tr><td style="padding:14px 18px;{% if not loop.last %}border-bottom:1px solid {{ theme.line }};{% endif %}">
+<div style="font-size:13px;font-weight:700;color:{{ s.color }};margin-bottom:6px;">{{ s.icon }} {{ s.key }}</div>
+<div style="font-size:13px;line-height:1.8;color:{{ theme.ink_soft }};white-space:pre-wrap;">{{ s.text }}</div>
+</td></tr>
+{% endfor %}
+</table>
+</td></tr>
+{% endif %}
+{% endif %}
+
+<!-- ══════════ 页脚 ══════════ -->
+<tr><td style="padding:26px 30px 24px;">
+<div style="border-top:1px solid {{ theme.line }};padding-top:16px;">
+<div style="font-size:10px;color:{{ theme.ink_mute }};line-height:1.9;">
+<b style="color:{{ theme.ink_soft }};">数据来源与口径</b><br>
+纳指历史回撤：{{ (etf_monitor.ndx_source ~ '（' ~ etf_monitor.ndx_count ~ ' 条日线）') if etf_monitor else '—' }} · 国内 ETF：腾讯财经行情 + 东方财富 T-1 净值<br>
+指数行情：{{ nasdaq100.ix.data_source if nasdaq100 else '—' }} · 成分股：{{ nasdaq100.components_source if nasdaq100 else '—' }} · 全球回撤：{{ radar.data_source if radar else '—' }}<br>
+回撤 = 当前价 / 历史最高价 − 1 · 历史回撤分位基于 expanding-window，无未来数据泄露 · 溢价率基于 T-1 净值，非实时 IOPV<br>
+{% if ai.analysis_sections or ai.commentary %}AI 解读由 DeepSeek 生成，仅作参考 · {% endif %}本简报不构成投资建议，投资决策请结合自身情况独立判断<br>
+生成时间 {{ meta.run_ts }}（北京时间） · 由 nasdaq-daily-brief 自动生成
+</div>
+<div style="margin-top:12px;font-size:10px;color:{{ theme.ink_mute }};">
+本次采集状态：
+{% for s in sources %}<span style="display:inline-block;margin-right:12px;white-space:nowrap;color:{{ severity.normal if s.ok else severity.extreme }};">{{ s.label }} {{ '✓' if s.ok else '✗' }} {{ '%.1f'|format(s.elapsed) }}s</span>{% endfor %}
+{% if errors %}<br><span style="color:{{ severity.extreme }};">{% for e in errors %}· {{ e.label }} 失败：{{ e.error[:90] }}{% endfor %}</span>{% endif %}
+</div>
+</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+

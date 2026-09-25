@@ -1,0 +1,141 @@
+name: 每日简报
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 定时说明（重要）
+#
+# GitHub Actions 的 schedule 用的是 UTC，而且**不是准点触发**：
+# 排队延迟普遍在 1.5～2.5 小时，高峰期更长（原 nasdaq-etf-monitor 声明 23:21 UTC
+# 即北京 07:21，实测连续 12 天都落在北京 09:32 左右，晚了约 2 小时）。
+#
+# 因此这里把 cron 往前挪，用「名义时间 + 实测漂移」来逼近想要的实际送达时间：
+#
+#   cron 45 22 * * 1-5   UTC 周一~周五 22:45
+#     = 北京时间 周二~周六 06:45（美股收盘后，数据已结算）
+#     + 实测约 2 小时排队漂移
+#     ≈ 北京时间 08:45 左右送达
+#
+# 为什么是周二~周六：美股在北京时间凌晨收盘，所以周一、周日的早上没有新数据，
+# 加了只会每天多两封重复邮件。宁可少发，也不要凑数。
+#
+# 为什么 22:45 而不是更早：美股 16:00 ET 收盘 = UTC 20:00（夏令时）/ 21:00（冬令时）。
+# 22:45 UTC 在两种时制下都留足了收盘到取数的间隔。
+#
+# 想改时间：只改下面那行 cron，然后把这行的注释一起更新，别让注释和时间对不上。
+# ═════════════════════════════════════════════════════════════════════════════
+
+on:
+  schedule:
+    - cron: "45 22 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      no_email:
+        description: "只跑不发送（调试用）"
+        type: boolean
+        default: false
+
+# 同一时间只允许一个实例；新任务不取消正在跑的，避免半途丢状态
+concurrency:
+  group: daily-brief
+  cancel-in-progress: false
+
+permissions:
+  contents: write          # 需要把 DuckDB / 雷达状态回写仓库
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      TZ: Asia/Shanghai
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 冒烟测试：先确认三个来源的模块都能导入，避免跑到一半才发现语法错
+      - name: 导入自检
+        run: |
+          python - <<'PY'
+          import importlib
+          mods = ["src.paths","src.settings","src.pipeline","src.derive","src.ai",
+                  "src.render","src.email_sender","src.main",
+                  "src.providers.common.us_history","src.providers.common.macro_fallback",
+                  "src.providers.common.yf_breaker",
+                  "src.providers.etf_monitor.config_loader","src.providers.etf_monitor.data_fetcher",
+                  "src.providers.etf_monitor.drawdown","src.providers.etf_monitor.etf",
+                  "src.providers.etf_monitor.ranking","src.providers.etf_monitor.database",
+                  "src.providers.drawdown_radar.config","src.providers.drawdown_radar.data_fetcher",
+                  "src.providers.drawdown_radar.drawdown","src.providers.drawdown_radar.signal",
+                  "src.providers.drawdown_radar.state","src.providers.nasdaq100.core"]
+          bad = []
+          for m in mods:
+              try: importlib.import_module(m)
+              except Exception as e: bad.append(f"{m}: {e}")
+          print(f"导入自检 {len(mods)-len(bad)}/{len(mods)} 通过")
+          if bad: raise SystemExit("导入失败：\n" + "\n".join(bad))
+          PY
+
+      - name: 生成并发送简报
+        env:
+          # ── 邮件：两套旧命名任选一套，配哪套用哪套 ──────────────────────
+          # 方案 A（原 nasdaq-etf-monitor）
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          # 方案 B（原 global-drawdown-radar / nasdaq100-daily-report）
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          TEST_RECIPIENT: ${{ secrets.TEST_RECIPIENT }}
+          EMAIL_BLOCKLIST: ${{ secrets.EMAIL_BLOCKLIST }}
+          # ── AI 解读（不配也能跑，只是没有第 12 节）──────────────────────
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [ "${{ inputs.no_email }}" = "true" ]; then
+            python -m src.main --preview
+          else
+            python -m src.main
+          fi
+
+      # 不管成功失败都把成品留档，方便回看当期到底长什么样
+      - name: 上传当日 HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brief-${{ github.run_id }}
+          path: |
+            data/archive/*.html
+            preview.html
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # DuckDB 行情库与雷达告警状态需要跨天累积，否则「新信号」每天都会重复报警
+      - name: 回写状态与行情库
+        if: always()
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/market.duckdb data/radar_state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "无状态变更，跳过提交"
+          else
+            git commit -m "chore(data): 更新行情库与雷达状态 [skip ci]"
+            git push
+          fi

@@ -1,0 +1,100 @@
+# 投资策略配置 —— 可自行调整
+# 注意：区间上限不包含本数，与代码逻辑一致
+
+# 纳斯达克100历史回撤等级
+drawdown_levels:
+  - min: 0.0
+    max: -5.0
+    label: "正常波动"
+    emoji: "🟢"
+  - min: -5.0
+    max: -10.0
+    label: "普通回撤"
+    emoji: "🟢"
+  - min: -10.0
+    max: -15.0
+    label: "中等回撤"
+    emoji: "🟡"
+  - min: -15.0
+    max: -20.0
+    label: "较大回撤"
+    emoji: "🟠"
+  - min: -20.0
+    max: -30.0
+    label: "重大回撤"
+    emoji: "🔴"
+  - min: -30.0
+    max: -40.0
+    label: "极端回撤"
+    emoji: "🔴"
+  - min: -40.0
+    max: -100.0
+    label: "历史级危机"
+    emoji: "🔥"
+
+# ETF 溢价率等级（单位：%）
+premium_levels:
+  - max: 0.0
+    label: "极佳"
+    emoji: "🟢"
+  - max: 1.0
+    label: "很好"
+    emoji: "🟢"
+  - max: 2.0
+    label: "可买"
+    emoji: "🟢"
+  - max: 3.0
+    label: "谨慎"
+    emoji: "🟡"
+  - max: 5.0
+    label: "不优先"
+    emoji: "🟠"
+  - max: 8.0
+    label: "高溢价"
+    emoji: "🔴"
+  - max: 999.0
+    label: "极高溢价"
+    emoji: "🔴"
+
+# 默认规则：溢价率阈值（%），≤此值视为可接受
+premium_accept_max: 2.0
+
+# 加仓回撤阈值（%）：历史回撤 ≤ 此值时视为进入加仓区间（ranking.py 使用）
+add_zone_drawdown: -10.0
+
+# 历史回撤 × ETF溢价 综合矩阵
+# 匹配规则：回撤落在 drawdown_range 内 且 最低可买ETF溢价 ≤ premium_max
+matrix:
+  - drawdown_range: [-100.0, -30.0]
+    premium_max: 2.0
+    signal: "🔥🔥🔥 历史级回撤"
+    emoji: "🔥"
+    level: 6
+  - drawdown_range: [-30.0, -20.0]
+    premium_max: 2.0
+    signal: "🔥🔥 极端加仓区"
+    emoji: "🔥"
+    level: 5
+  - drawdown_range: [-20.0, -15.0]
+    premium_max: 2.0
+    signal: "🔥 强加仓区"
+    emoji: "🔥"
+    level: 4
+  - drawdown_range: [-15.0, -10.0]
+    premium_max: 2.0
+    signal: "🟢 加仓区"
+    emoji: "🟢"
+    level: 3
+  - drawdown_range: [-10.0, -5.0]
+    premium_max: 2.0
+    signal: "🟢 可正常加仓"
+    emoji: "🟢"
+    level: 2
+  - drawdown_range: [-5.0, 0.0]
+    premium_max: 2.0
+    signal: "🟢 正常定投"
+    emoji: "🟢"
+    level: 1
+
+# 回撤事件检测阈值（%）
+event_thresholds: [-10.0, -15.0, -20.0, -30.0, -40.0]
