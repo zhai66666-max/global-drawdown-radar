@@ -4,7 +4,6 @@ Global Market Drawdown Radar — Configuration
 All constants, ETF definitions, thresholds, and paths in one place.
 """
 
-import os
 from pathlib import Path
 
 from src.paths import RADAR_STATE_FILE, TEMPLATES_DIR
@@ -62,15 +61,18 @@ def get_drawdown_status(historical_dd: float | None) -> tuple[str, str, str]:
     else:
         return ("正常", "#22c55e", "🟢")
 
-# ─── Email ────────────────────────────────────────────────────────────────────
-SMTP_HOST = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USER = os.environ.get("SENDER_EMAIL", "")
-SMTP_PASSWORD = os.environ.get("SENDER_PASSWORD", "")
-EMAIL_TO = os.environ.get("RECIPIENT_EMAIL", "")
-TEST_RECIPIENT = os.environ.get("TEST_RECIPIENT", "")
-
-# ─── DeepSeek (optional, for AI market commentary) ────────────────────────────
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+# ─── Email / AI 配置 ──────────────────────────────────────────────────────────
+# 合并前这里自己读了一遍邮件与 DeepSeek 的环境变量，但合并后
+# **所有邮件配置的唯一入口是 `src/settings.py`**，本模块的这几个常量已无任何引用。
+#
+# 之所以删掉而不是留着：其中一行是
+#     SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+# 模块级执行，且 os.environ.get 的默认值只在 **key 不存在** 时生效。
+# GitHub Actions 里 `${{ secrets.X }}` 未配置时会注入 **空字符串**（key 存在、值为空），
+# 于是 int("") 直接抛 ValueError —— 而这是模块级代码，一旦触发，
+# 整个「全球回撤雷达」数据源会被上游的异常隔离吞掉，邮件静默少掉三个区块。
+# 删掉它比给它打补丁更安全：会崩的死配置不该留在代码里。
+#
+# 邮件：见 src/settings.py（load_smtp / deepseek_key），兼容 EMAIL_* 与 SENDER_*/SMTP_* 两套命名
 DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions"
 DEEPSEEK_MODEL = "deepseek-v4-flash"

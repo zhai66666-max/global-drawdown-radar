@@ -45,9 +45,37 @@ jobs:
   brief:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # ── 环境变量放在 job 级，所有步骤共享 ─────────────────────────────────────
+    #
+    # 为什么不是只给「生成并发送简报」那一步加 env：
+    # 曾经就是那么写的，结果「导入自检」步骤跑在一个**没有这些变量**的环境里，
+    # 而真实运行有（值为空字符串）。两者环境不一致，自检于是给出了假绿灯——
+    # 模块级 `int(os.environ.get("SMTP_PORT", "587"))` 在自检里读到默认值 587 通过，
+    # 在真实运行里读到 "" 直接抛 ValueError，整个「全球回撤雷达」数据源被静默吞掉。
+    #
+    # 放到 job 级之后，自检步骤自动获得了回归防护能力：
+    # 未配置 secret 时变量为空字符串，任何「空值导致崩溃」的问题都会在自检就暴露，
+    # 而不是等到补数据的时候才发现。
     env:
       TZ: Asia/Shanghai
       PYTHONUNBUFFERED: "1"
+      # ── 邮件：两套旧命名任选一套，配哪套用哪套 ──────────────────────────
+      # 方案 A（原 nasdaq-etf-monitor）
+      EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+      EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+      EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      # 方案 B（原 global-drawdown-radar / nasdaq100-daily-report）
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+      SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+      RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+      TEST_RECIPIENT: ${{ secrets.TEST_RECIPIENT }}
+      EMAIL_BLOCKLIST: ${{ secrets.EMAIL_BLOCKLIST }}
+      # ── AI 解读（不配也能跑，只是没有第 12 节）──────────────────────────
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
 
     steps:
       - name: 检出仓库
@@ -65,48 +93,64 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # ── 冒烟测试：先确认三个来源的模块都能导入，避免跑到一半才发现语法错
+      # ── 冒烟测试：确认所有模块可导入，并覆盖「空值环境变量」这一失效类别 ─────
+      #
+      # 这里跑两遍，第二遍在全新解释器里把所有凭据环境变量显式置为空字符串，
+      # 复现 GitHub 未配置 secret 时的注入方式（key 存在、值为空）。
+      #
+      # 为什么必须显式置空：job 级 env 已经让常规那遍共享了真实运行的环境，
+      # 但一旦用户把 secret 配齐，常规那遍就再也测不到空值了——而空值恰恰是
+      # 最容易炸的一类（`os.environ.get(K, default)` 的 default 只在 key
+      # **不存在** 时生效，secret 未配置时 key 存在但值为空字符串）。
+      # 曾经就是这一类问题让「全球回撤雷达」整个数据源在云端静默消失。
       - name: 导入自检
         run: |
-          python - <<'PY'
-          import importlib
-          mods = ["src.paths","src.settings","src.pipeline","src.derive","src.ai",
-                  "src.render","src.email_sender","src.main",
-                  "src.providers.common.us_history","src.providers.common.macro_fallback",
+          cat > /tmp/check_imports.py <<'PY'
+          import importlib, os, sys
+
+          KEYS = ("EMAIL_HOST", "EMAIL_PORT", "EMAIL_USERNAME", "EMAIL_PASSWORD",
+                  "EMAIL_TO", "SMTP_SERVER", "SMTP_PORT", "SENDER_EMAIL",
+                  "SENDER_PASSWORD", "RECIPIENT_EMAIL", "TEST_RECIPIENT",
+                  "EMAIL_BLOCKLIST", "DEEPSEEK_API_KEY")
+
+          MODS = ["src.paths", "src.settings", "src.pipeline", "src.derive", "src.ai",
+                  "src.render", "src.email_sender", "src.main",
+                  "src.providers.common.us_history", "src.providers.common.macro_fallback",
                   "src.providers.common.yf_breaker",
-                  "src.providers.etf_monitor.config_loader","src.providers.etf_monitor.data_fetcher",
-                  "src.providers.etf_monitor.drawdown","src.providers.etf_monitor.etf",
-                  "src.providers.etf_monitor.ranking","src.providers.etf_monitor.database",
-                  "src.providers.drawdown_radar.config","src.providers.drawdown_radar.data_fetcher",
-                  "src.providers.drawdown_radar.drawdown","src.providers.drawdown_radar.signal",
-                  "src.providers.drawdown_radar.state","src.providers.nasdaq100.core"]
+                  "src.providers.etf_monitor.config_loader",
+                  "src.providers.etf_monitor.data_fetcher", "src.providers.etf_monitor.drawdown",
+                  "src.providers.etf_monitor.etf", "src.providers.etf_monitor.ranking",
+                  "src.providers.etf_monitor.database",
+                  "src.providers.drawdown_radar.config", "src.providers.drawdown_radar.data_fetcher",
+                  "src.providers.drawdown_radar.drawdown", "src.providers.drawdown_radar.signal",
+                  "src.providers.drawdown_radar.state", "src.providers.nasdaq100.core"]
+
+          mode = sys.argv[1]
+          if mode == "empty":
+              for k in KEYS:
+                  os.environ[k] = ""
+
           bad = []
-          for m in mods:
-              try: importlib.import_module(m)
-              except Exception as e: bad.append(f"{m}: {e}")
-          print(f"导入自检 {len(mods)-len(bad)}/{len(mods)} 通过")
-          if bad: raise SystemExit("导入失败：\n" + "\n".join(bad))
+          for m in MODS:
+              try:
+                  importlib.import_module(m)
+              except Exception as e:
+                  bad.append(f"{m}: {type(e).__name__}: {e}")
+
+          label = "空值环境" if mode == "empty" else "常规环境"
+          print(f"{label}导入自检：{len(MODS) - len(bad)}/{len(MODS)} 通过")
+          if bad:
+              print("失败模块：")
+              for b in bad:
+                  print("  -", b)
+              raise SystemExit(f"{label}下有模块导入失败")
           PY
+          # PYTHONPATH 必须显式指向仓库根：脚本放在 /tmp 时，Python 会把
+          # **脚本所在目录**（/tmp）而不是当前目录放进 sys.path[0]，`import src` 会失败。
+          PYTHONPATH="$PWD" python /tmp/check_imports.py normal
+          PYTHONPATH="$PWD" python /tmp/check_imports.py empty
 
       - name: 生成并发送简报
-        env:
-          # ── 邮件：两套旧命名任选一套，配哪套用哪套 ──────────────────────
-          # 方案 A（原 nasdaq-etf-monitor）
-          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
-          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
-          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
-          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          # 方案 B（原 global-drawdown-radar / nasdaq100-daily-report）
-          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
-          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
-          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
-          TEST_RECIPIENT: ${{ secrets.TEST_RECIPIENT }}
-          EMAIL_BLOCKLIST: ${{ secrets.EMAIL_BLOCKLIST }}
-          # ── AI 解读（不配也能跑，只是没有第 12 节）──────────────────────
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           if [ "${{ inputs.no_email }}" = "true" ]; then
             python -m src.main --preview
