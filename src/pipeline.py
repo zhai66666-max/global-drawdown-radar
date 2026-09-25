@@ -155,6 +155,24 @@ def collect_drawdown_radar() -> dict:
     metrics = compute_all_metrics(adj_close, latest_close)
     logger.info("  [radar] 计算完成 %d 个资产", len(metrics))
 
+    # 回撤那一族锚在「已收盘」那根日线的收盘价，价格/涨跌是盘面快照 ——
+    # 两个基准都带出来给邮件标注。不标的话，02 区块的纳指回撤锁死、
+    # 而 10 区块的各资产回撤随盘中跳动，同一封邮件里看着自相矛盾。
+    basis_dates = sorted({m.get("basis_date") for m in metrics if m.get("basis_date")})
+    snap_dates = sorted({m.get("data_date") for m in metrics if m.get("data_date")})
+    intraday = any(m.get("intraday_dropped") for m in metrics)
+    if not basis_dates:
+        basis_label = ""
+    elif len(basis_dates) == 1:
+        basis_label = f"{basis_dates[0][5:]} 收盘"
+    else:
+        basis_label = f"{basis_dates[-1][5:]} 收盘（{len(basis_dates)} 个基准日）"
+    snapshot_label = (f"{snap_dates[-1][5:]} {'盘中' if intraday else '收盘'}"
+                      if snap_dates else "")
+    logger.info("  [radar] 价格基准 %s｜回撤基准 %s%s", snapshot_label or "—",
+                basis_label or "—",
+                "（已剔除盘中未收盘 bar）" if intraday else "")
+
     state = load_state()
     alerts, updated_state = detect_breaches(metrics, state)
     try:
@@ -163,7 +181,9 @@ def collect_drawdown_radar() -> dict:
         logger.warning("  [radar] 状态保存失败（不影响邮件）: %s", exc)
 
     return {"metrics": metrics, "alerts": alerts, "errors": errors,
-            "data_source": radar_fetch.LAST_SOURCE}
+            "data_source": radar_fetch.LAST_SOURCE,
+            "basis_label": basis_label, "snapshot_label": snapshot_label,
+            "intraday_dropped": intraday}
 
 
 # ── 来源 3：纳斯达克100 深度数据 ─────────────────────────────────────────────

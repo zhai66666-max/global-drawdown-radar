@@ -115,7 +115,8 @@ jobs:
 
           MODS = ["src.paths", "src.settings", "src.pipeline", "src.derive", "src.ai",
                   "src.render", "src.email_sender", "src.main",
-                  "src.providers.common.us_history", "src.providers.common.macro_fallback",
+                  "src.providers.common.bar_basis", "src.providers.common.us_history",
+                  "src.providers.common.macro_fallback",
                   "src.providers.common.yf_breaker",
                   "src.providers.etf_monitor.config_loader",
                   "src.providers.etf_monitor.data_fetcher", "src.providers.etf_monitor.drawdown",
@@ -149,6 +150,13 @@ jobs:
           # **脚本所在目录**（/tmp）而不是当前目录放进 sys.path[0]，`import src` 会失败。
           PYTHONPATH="$PWD" python /tmp/check_imports.py normal
           PYTHONPATH="$PWD" python /tmp/check_imports.py empty
+
+      # 口径自检：把「盘中未收盘 bar」这个场景**造出来**，验证派生指标只用收盘口径。
+      # 本机永远测不出这条规则被违反（yfinance 限流 → 走官方兜底 → 兜底源要收盘后才收录当天），
+      # 只有 Actions 在美股盘中跑才会命中；所以这里靠打桩把分支钉住。
+      # 2026-09-25 就是靠它发现「52 周分位用实时价、回撤用收盘价」与「10 区块回撤随盘中跳动」。
+      - name: 口径自检（盘中分支打桩）
+        run: PYTHONPATH="$PWD" python scripts/check_bar_basis.py
 
       - name: 生成并发送简报
         run: |

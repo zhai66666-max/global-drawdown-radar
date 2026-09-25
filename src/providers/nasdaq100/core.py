@@ -265,22 +265,13 @@ def _safe_int(val: Any) -> int:
 
 
 def _bar_phase(last_bar: str) -> str:
-    """最后一根日线属于「盘中」还是「已收盘」。
+    """最后一根日线属于「盘中 / 今日收盘 / 收盘」（实现收口在 common.bar_basis）。
 
-    用美东时间判定：yfinance 在开盘后才生成当天的 bar，
-    所以 last_bar == 美东今天 且 未过 16:00 → 盘中；否则视为收盘价。
-    判不出来时返回空串，调用方退回只显示日期，不会影响渲染。
+    雷达那边（drawdown_radar）也要做同一个判断，两处各写一份必然走散
+    （52 周分位就是这么分叉的），所以这里只留一个薄壳，方便调用方与单测沿用旧名字。
     """
-    if not last_bar:
-        return ""
-    try:
-        from zoneinfo import ZoneInfo
-        now_et = datetime.now(ZoneInfo("America/New_York"))
-    except Exception:                                   # noqa: BLE001
-        return ""
-    if last_bar != now_et.strftime("%Y-%m-%d"):
-        return "收盘"
-    return "盘中" if now_et.hour < 16 else "今日收盘"
+    from src.providers.common import bar_basis
+    return bar_basis.bar_phase(last_bar)
 
 
 def _load_index_history(ticker: str, label: str, rows: int = 252):
@@ -372,8 +363,9 @@ def _fetch_index_data(ticker: str, label: str) -> Dict[str, Any]:
     #     ① 盘中最高价会把 52 周区间顶高（实测 30,770.63 vs 收盘 30,732.40）；
     #     ② 半截成交量会被误判成「缩量」；
     #     ③ 与回撤（按收盘算）永远差一个交易日，同一封邮件里两个数字打架。
-    intraday_bar = (phase == "盘中") and len(hist) > 1
-    hist_c = hist.iloc[:-1] if intraday_bar else hist
+    from src.providers.common import bar_basis
+    hist_c = bar_basis.closed_view(hist, last_bar)
+    intraday_bar = len(hist_c) != len(hist)
     close_c = hist_c["Close"]
     vol_c = hist_c["Volume"] if "Volume" in hist_c.columns else None
 

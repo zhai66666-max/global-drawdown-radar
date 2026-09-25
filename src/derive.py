@@ -382,6 +382,10 @@ def derive_radar(raw: dict, convention: str = "cn") -> dict:
         },
         "has_alert": bool(alerts),
         "has_historic": historic_count > 0,
+        # 价格/涨跌是盘面快照（09 区块），回撤与分位是收盘口径（10/11 区块）
+        "basis_label": raw.get("basis_label") or "",
+        "snapshot_label": raw.get("snapshot_label") or "",
+        "intraday_dropped": bool(raw.get("intraday_dropped")),
     }
 
 

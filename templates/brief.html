@@ -500,7 +500,7 @@
 
 {% if radar and sections.global_table %}
 <!-- ══════════ 09 全球市场横向对比 ══════════ -->
-{{ sec('09', '全球市场横向对比', radar.summary.total ~ ' 个资产 · 回撤口径为各资产自身全部历史') }}
+{{ sec('09', '全球市场横向对比', radar.summary.total ~ ' 个资产 · 价格 ' ~ (radar.snapshot_label or '最新') ~ ' · 回撤/分位基准 ' ~ (radar.basis_label or '最近收盘')) }}
 <tr><td style="padding:0 30px;">
 <div style="border:1px solid {{ theme.line }};border-radius:10px;overflow:hidden;">
 <table class="mt" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:12px;table-layout:fixed;width:100%;">
@@ -537,6 +537,7 @@
 </table>
 </div>
 <div style="font-size:10px;color:{{ theme.ink_mute }};margin-top:8px;line-height:1.7;">
+本区块含两种口径：<b>价格与涨跌</b>为 {{ radar.snapshot_label or '最新' }} 盘面快照；<b>回撤与分位</b>为收盘口径{{ ('（截至 ' ~ radar.basis_label ~ '）') if radar.basis_label else '' }}，口径为各资产自身全部历史 —— 与 02 区块的纳指回撤同源。<br>
 长期回撤使用复权价格（Adj Close），最新价使用未复权收盘价 · 分位数基于 expanding-window 计算，无未来数据泄露
 </div>
 </td></tr>
@@ -544,7 +545,7 @@
 
 {% if radar and sections.global_watch %}
 <!-- ══════════ 10 全球重点观察 ══════════ -->
-{{ sec('10', '全球重点观察', '回撤最深的三个市场') }}
+{{ sec('10', '全球重点观察', '回撤最深的三个市场 · 基准 ' ~ (radar.basis_label or '最近收盘')) }}
 <tr><td style="padding:0 30px;">
 {% for m in radar.summary.worst_dd %}
 <div style="background:{{ theme.panel }};border:1px solid {{ theme.line }};border-left:3px solid {{ m.status_color }};border-radius:0 10px 10px 0;padding:13px 16px;margin-bottom:9px;">
@@ -571,7 +572,7 @@
 
 {% if radar and sections.global_alerts %}
 <!-- ══════════ 11 全球回撤新信号 ══════════ -->
-{{ sec('11', '全球回撤新信号', '阈值 ' ~ (radar.rows|length and '20% / 30% / 40%' or '')) }}
+{{ sec('11', '全球回撤新信号', '阈值 20% / 30% / 40% · 收盘口径判定') }}
 <tr><td style="padding:0 30px;">
 {% for a in radar.alerts %}
 <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:13px 16px;margin-bottom:9px;">
@@ -627,7 +628,7 @@
 <b style="color:{{ theme.ink_soft }};">数据来源与口径</b><br>
 纳指历史回撤：{{ (etf_monitor.ndx_source ~ '（' ~ etf_monitor.ndx_count ~ ' 条日线' ~ ('，截至 ' ~ etf_monitor.dd_as_of_short if etf_monitor.dd_as_of_short else '') ~ '）') if etf_monitor else '—' }} · 国内 ETF：腾讯财经行情 + 东方财富 T-1 净值<br>
 指数行情：{{ nasdaq100.ix.data_source if nasdaq100 else '—' }} · 成分股：{{ nasdaq100.components_source if nasdaq100 else '—' }} · 全球回撤：{{ radar.data_source if radar else '—' }}<br>
-<b style="color:{{ theme.ink_soft }};">口径：</b>页头指数为 {{ summary.ndx_bar_label or '最新' }} 盘面价{{ '（盘中即实时价）' if summary.ndx_bar_label and '盘中' in summary.ndx_bar_label else '' }}；52 周收盘区间与分位、50/200 日均线、RSI、20 日均量、历史回撤等全部指标均为<b style="color:{{ theme.ink_soft }};">收盘口径</b>{{ ('（截至 ' ~ summary.indicator_label ~ '）') if summary.indicator_label else '' }}，同一封邮件内互不矛盾<br>
+<b style="color:{{ theme.ink_soft }};">口径：</b>页头指数、05 宏观报价、08 成分股涨跌榜、09 全球价格与涨跌为<b style="color:{{ theme.ink_soft }};">盘面快照</b>（{{ summary.ndx_bar_label or '最新' }}，随行情变动）；52 周收盘区间与分位、50/200 日均线、RSI、20 日均量、以及<b style="color:{{ theme.ink_soft }};">全部历史回撤</b>（02 纳指 / 10 全球，各自区块内标注基准日）均为<b style="color:{{ theme.ink_soft }};">收盘口径</b>，同一封邮件内互不矛盾<br>
 回撤 = 当前收盘价 / 历史最高收盘价 − 1 · 历史回撤分位基于 expanding-window，无未来数据泄露 · 溢价率基于 T-1 净值，非实时 IOPV<br>
 {% if ai.analysis_sections or ai.commentary %}AI 解读由 DeepSeek 生成，仅作参考 · {% endif %}本简报不构成投资建议，投资决策请结合自身情况独立判断<br>
 生成时间 {{ meta.run_ts }}（北京时间） · 由 nasdaq-daily-brief 自动生成

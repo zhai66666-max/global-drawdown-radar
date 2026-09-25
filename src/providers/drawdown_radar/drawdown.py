@@ -18,6 +18,7 @@ from src.providers.drawdown_radar.config import (
     TRADING_DAYS_5Y,
     VOLATILITY_WINDOW,
 )
+from src.providers.common import bar_basis
 
 logger = logging.getLogger(__name__)
 
@@ -222,19 +223,25 @@ def compute_all_metrics(
             etf_info = ETF_LOOKUP.get(ticker, {"name_cn": ticker, "market": ""})
             unadj_close = latest_close.get(ticker)
 
-            # Price basics
+            # Price basics —— 盘面快照（09 区块的价格/涨跌）：保留当天那根还没
+            # 走完的 bar。注意 daily_change_pct 的「前收」取自 clean.iloc[-2]，
+            # 所以这里必须传**完整**序列，截掉会让涨跌幅错一天。
             price_info = compute_current_price_metrics(prices, unadj_close)
 
-            # Drawdowns
-            dd_52w = compute_52w_drawdown(prices)
-            max_dd_52w = compute_52w_max_drawdown(prices)
-            dd_5y = compute_5y_drawdown(prices)
-            dd_historical = compute_historical_drawdown(prices)
-            max_dd_historical = compute_historical_max_drawdown(prices)
-            dd_percentile = compute_drawdown_percentile(prices)
-            cycle_max_dd = compute_current_cycle_max_drawdown(prices)
-            vol_20d = compute_20d_annualized_volatility(prices)
-            dist_from_ath, ath_date, days_since_ath = compute_distance_from_ath(prices)
+            # Drawdowns —— 派生指标（10/11 区块）：只用**已收盘**的日线。
+            # 不这么做的话，同一封邮件里 02 区块的纳指回撤锁死在收盘值，
+            # 10 区块的各资产回撤却随盘中行情跳动 —— 实测同一晚的四次运行：
+            # GLD -21.0% → -21.0% → -21.1% → -20.9%，而 NDX 恒为 -0.82%。
+            prices_c = bar_basis.closed_view(prices)
+            dd_52w = compute_52w_drawdown(prices_c)
+            max_dd_52w = compute_52w_max_drawdown(prices_c)
+            dd_5y = compute_5y_drawdown(prices_c)
+            dd_historical = compute_historical_drawdown(prices_c)
+            max_dd_historical = compute_historical_max_drawdown(prices_c)
+            dd_percentile = compute_drawdown_percentile(prices_c)
+            cycle_max_dd = compute_current_cycle_max_drawdown(prices_c)
+            vol_20d = compute_20d_annualized_volatility(prices_c)
+            dist_from_ath, ath_date, days_since_ath = compute_distance_from_ath(prices_c)
 
             # Status
             from src.providers.drawdown_radar.config import get_drawdown_status
@@ -247,6 +254,9 @@ def compute_all_metrics(
                 "current_price": price_info["current_price"],
                 "daily_change_pct": price_info["daily_change_pct"],
                 "data_date": price_info["data_date"],
+                # 回撤那一族用的是哪一天的收盘价 —— 页脚与 10 区块要标出来
+                "basis_date": bar_basis.last_date(prices_c),
+                "intraday_dropped": len(prices_c) != len(prices),
                 "dd_52w": dd_52w,
                 "max_dd_52w": max_dd_52w,
                 "dd_5y": dd_5y,
@@ -274,6 +284,7 @@ def compute_all_metrics(
                 "current_price": None,
                 "daily_change_pct": None,
                 "data_date": None,
+                "basis_date": None, "intraday_dropped": False,
                 "dd_52w": None, "max_dd_52w": None, "dd_5y": None,
                 "dd_historical": None, "max_dd_historical": None,
                 "dd_percentile": None, "cycle_max_dd": None,
