@@ -59,7 +59,15 @@ def collect_etf_monitor(run_date: str) -> dict:
 
     # 1) 纳指100 完整历史（NASDAQ 官方 API → yfinance → 本地缓存，自动降级）
     ndx_df, ndx_source = data_fetcher.fetch_nasdaq_history()
-    logger.info("  [etf_monitor] 纳指历史: %s, %d 条日线", ndx_source, len(ndx_df))
+    # 这条序列的最后一根日线决定了「当前回撤」是拿哪一天的收盘价算的。
+    # 它和页头那个大数字并不是同一个源：页头走 yfinance，美股盘中会带上
+    # 当天的实时未收盘 bar，而这里的 NASDAQ 官方历史接口要等收盘后才收录
+    # 当天 → 盘中手动触发时两者会差一个交易日（页头动、回撤不动）。
+    # 所以必须把基准日一并显示出来，否则读者无法判断回撤对应哪天。
+    ndx_last_date = str(ndx_df["date"].iloc[-1])[:10] if len(ndx_df) else ""
+    ndx_last_close = float(ndx_df["close"].iloc[-1]) if len(ndx_df) else None
+    logger.info("  [etf_monitor] 纳指历史: %s, %d 条日线（截至 %s 收盘 %s）",
+                ndx_source, len(ndx_df), ndx_last_date, ndx_last_close)
 
     # 2) 历史回撤
     strategy = config_loader.load_strategy()
@@ -115,6 +123,8 @@ def collect_etf_monitor(run_date: str) -> dict:
         "signal": signal,
         "ndx_source": ndx_source,
         "ndx_count": len(ndx_df),
+        "ndx_last_date": ndx_last_date,
+        "ndx_last_close": ndx_last_close,
         "data_status": data_status,
         "basis_label": "、".join(basis_set) if basis_set else "未知",
         "failed_etfs": [

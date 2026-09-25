@@ -264,6 +264,25 @@ def _safe_int(val: Any) -> int:
         return 0
 
 
+def _bar_phase(last_bar: str) -> str:
+    """最后一根日线属于「盘中」还是「已收盘」。
+
+    用美东时间判定：yfinance 在开盘后才生成当天的 bar，
+    所以 last_bar == 美东今天 且 未过 16:00 → 盘中；否则视为收盘价。
+    判不出来时返回空串，调用方退回只显示日期，不会影响渲染。
+    """
+    if not last_bar:
+        return ""
+    try:
+        from zoneinfo import ZoneInfo
+        now_et = datetime.now(ZoneInfo("America/New_York"))
+    except Exception:                                   # noqa: BLE001
+        return ""
+    if last_bar != now_et.strftime("%Y-%m-%d"):
+        return "收盘"
+    return "盘中" if now_et.hour < 16 else "今日收盘"
+
+
 def _load_index_history(ticker: str, label: str, rows: int = 252):
     """取指数近一年日线。返回 (hist, info)，两者都可能为空。
 
@@ -382,6 +401,17 @@ def _fetch_index_data(ticker: str, label: str) -> Dict[str, Any]:
 
     symbol_name = "纳斯达克100" if ticker == "^NDX" else "QQQ (纳斯达克100 ETF)"
 
+    # 这根日线是哪一天的、算不算「已收盘」——页头要显示出来。
+    # 关键点：盘中时 yfinance 会把当天那根还没走完的 bar 当作最后一行，
+    # 所以页头的数字是实时价；而回撤那一侧（etf_monitor）用的是 NASDAQ
+    # 官方历史接口，要等收盘后才收录当天 → 两边会差一个交易日。
+    try:
+        last_bar = str(hist.index[-1])[:10]
+    except Exception:                                   # noqa: BLE001
+        last_bar = ""
+    phase = _bar_phase(last_bar)
+    bar_label = f"{last_bar[5:]} {phase}".strip() if last_bar else ""
+
     return {
         "symbol": ticker, "name": symbol_name,
         "current_price": round(cur, 2), "prev_close": round(prev_close, 2),
@@ -390,6 +420,7 @@ def _fetch_index_data(ticker: str, label: str) -> Dict[str, Any]:
         "high_52w": round(high_52w, 2), "low_52w": round(low_52w, 2),
         "volume": volume, "avg_vol_20": avg_vol_20,
         "ma_50": ma_50, "ma_200": ma_200, "rsi": rsi,
+        "last_bar": last_bar, "bar_phase": phase, "bar_label": bar_label,
         "data_source": src or "未知",
         "date": datetime.now().strftime("%Y-%m-%d"),
     }

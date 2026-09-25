@@ -266,6 +266,10 @@ def derive_nasdaq100(raw: dict, convention: str = "cn", thresholds: dict | None 
     return {
         "ix": ix,
         "cur_display": f"{cur:,.2f}",
+        # 这个数字对应哪根日线：盘中是实时价、盘前/盘后是收盘价。
+        # 页头标出来，才不至于和「回撤」那个按收盘算的数字互相矛盾。
+        "bar_label": ix.get("bar_label") or "",
+        "bar_phase": ix.get("bar_phase") or "",
         "chg_display": f"{ix['change']:+,.2f}",
         "chg_pct_display": f"{ix['change_pct']:+.2f}%",
         "chg_color": chg_color,
@@ -401,6 +405,19 @@ def derive_etf_monitor(raw: dict, convention: str = "cn") -> dict:
     # 因此当全场溢价都超标时 best 为 None。若顶部卡片直接显示 best，
     # 就会变成一个「—」，看起来像取数失败，实际是「贵得不能买」。
     lowest = ranked[0] if ranked else None
+
+    # 回撤的数据基准日。回撤只能用「已收盘」的日线算（这是它的定义决定的，
+    # 盘中价会让回撤等级/分位每分钟乱跳），而页头那个指数是实时的 ——
+    # 两者在美股盘中本来就会差一个交易日，所以这里把基准日显式写出来。
+    last_date = raw.get("ndx_last_date") or ""
+    last_close = raw.get("ndx_last_close")
+    if last_date:
+        as_of_short = f"{last_date[5:]} 收盘"
+        as_of_full = (f"{last_date[5:]} 收盘 {last_close:,.2f}"
+                      if last_close is not None else as_of_short)
+    else:
+        as_of_short = as_of_full = "—"
+
     return {
         "dd": dd,
         "ranked": ranked,
@@ -417,6 +434,9 @@ def derive_etf_monitor(raw: dict, convention: str = "cn") -> dict:
         "lowest_premium": (lowest.get("premium") if lowest else None),
         "ndx_source": raw["ndx_source"],
         "ndx_count": raw["ndx_count"],
+        "ndx_last_date": last_date,
+        "dd_as_of_short": as_of_short,      # 「09-24 收盘」——卡片副标题用
+        "dd_as_of_full": as_of_full,        # 「09-24 收盘 30,478.86」——明细行用
         "data_status": raw["data_status"],
         "basis_label": raw["basis_label"],
         "failed_etfs": raw["failed_etfs"],

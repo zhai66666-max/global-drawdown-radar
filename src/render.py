@@ -60,8 +60,10 @@ def build_context(results: dict[str, pipeline.SourceResult],
     summary: dict = {
         "ndx_price": "—", "ndx_change": "—", "ndx_change_pct": "—",
         "ndx_change_color": change_color(None, convention), "ndx_up": True,
+        "ndx_bar_label": "",
         "hist_dd": None, "hist_dd_display": "—", "hist_percentile": None,
         "hist_level": "—", "hist_emoji": "⚪", "hist_max_dd": None,
+        "dd_as_of_short": "", "dd_as_of_full": "",
         "best_etf_label": "—", "best_premium_display": "—", "best_emoji": "⚪",
         "best_lowest_premium": None, "best_qualified": False,
         "premium_ok": False, "add_satisfied": False, "matrix_signal": None,
@@ -77,6 +79,7 @@ def build_context(results: dict[str, pipeline.SourceResult],
             "ndx_change_pct": nq_data["chg_pct_display"],
             "ndx_change_color": nq_data["chg_color"],
             "ndx_up": ix["change"] >= 0,
+            "ndx_bar_label": nq_data.get("bar_label") or "",
         })
     if em_data:
         dd = em_data["dd"]
@@ -87,6 +90,10 @@ def build_context(results: dict[str, pipeline.SourceResult],
             "hist_level": dd["level"]["label"],
             "hist_emoji": dd["level"]["emoji"],
             "hist_max_dd": dd["max_dd"]["max_drawdown"],
+            # 回撤的基准日必须显式展示：它固定是「已收盘」的日线，
+            # 而页头是实时价，美股盘中两者天然差一个交易日。
+            "dd_as_of_short": em_data.get("dd_as_of_short") or "",
+            "dd_as_of_full": em_data.get("dd_as_of_full") or "",
             # 顶部卡片展示「场内实际最低溢价」而非「溢价达标的那只」，
             # 否则全场溢价都超标时卡片会显示「—」，看着像取数失败。
             # 是否达标由 premium_ok 单独表达，用配色区分。
@@ -114,10 +121,19 @@ def build_context(results: dict[str, pipeline.SourceResult],
     # ── 今日一句话（纯数据拼装，非 AI 生成，事实可核对）
     bits = []
     if nq_data:
-        bits.append(f"纳指100 收于 {nq_data['cur_display']}（{nq_data['chg_pct_display']}）")
+        bar = nq_data.get("bar_label") or ""
+        phase = nq_data.get("bar_phase") or ""
+        # 盘中不能说「收于」——那个数字是实时价，还没收盘。
+        verb = "现报" if phase == "盘中" else "收于"
+        tail = f"，{bar}" if bar else ""
+        bits.append(f"纳指100 {verb} {nq_data['cur_display']}"
+                    f"（{nq_data['chg_pct_display']}{tail}）")
     if em_data:
+        dd_basis = ""
+        if em_data.get("ndx_last_date"):
+            dd_basis = f"（截至 {em_data['dd_as_of_short']}）"
         bits.append(f"当前历史回撤 {em_data['dd']['current_drawdown']:.2f}%"
-                    f"、处于历史 {em_data['dd']['percentile']:.0f}% 分位")
+                    f"、处于历史 {em_data['dd']['percentile']:.0f}% 分位{dd_basis}")
         if em_data["lowest"]:
             qual = ("已达可买区间" if em_data["best"]
                     else f"高于 {thr.get('etf_premium_ok', 2.0)}% 上限")

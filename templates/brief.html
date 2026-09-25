@@ -101,7 +101,7 @@
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:22px;">
 <tr>
 <td style="vertical-align:bottom;">
-<div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.45);margin-bottom:4px;">纳斯达克100</div>
+<div style="font-size:10px;letter-spacing:1px;color:rgba(255,255,255,0.45);margin-bottom:4px;">纳斯达克100{% if summary.ndx_bar_label %} · {{ summary.ndx_bar_label }}{% endif %}</div>
 <div style="font-size:40px;font-weight:700;color:#ffffff;line-height:1.0;letter-spacing:-1px;">{{ summary.ndx_price }}</div>
 </td>
 <td style="vertical-align:bottom;text-align:right;">
@@ -133,7 +133,7 @@
 <td style="padding:20px 25px 8px;">
 <table class="m4" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;width:100%;"><tr>
 {% if etf_monitor %}
-{{ metric('纳指历史回撤', summary.hist_dd_display, summary.hist_emoji ~ ' ' ~ summary.hist_level ~ ' · 分位 ' ~ ('%.0f'|format(summary.hist_percentile)) ~ '%', tone('down')) }}
+{{ metric('纳指历史回撤', summary.hist_dd_display, summary.hist_emoji ~ ' ' ~ summary.hist_level ~ ' · 分位 ' ~ ('%.0f'|format(summary.hist_percentile)) ~ '%' ~ (' · 截至 ' ~ summary.dd_as_of_short if summary.dd_as_of_short else ''), tone('down')) }}
 {{ metric('场内最低 ETF 溢价', summary.best_premium_display, (summary.best_emoji ~ ' ' ~ summary.best_etf_label ~ ('' if summary.premium_ok else ' · 高于 ' ~ thresholds.etf_premium_ok ~ '% 上限')), tone('up') if summary.premium_ok else severity.watch) }}
 {% else %}
 {{ metric('纳指历史回撤', '—', '数据源未就绪') }}
@@ -197,7 +197,7 @@
 纳指已进入{% if etf_monitor.dd.current_drawdown <= -30 %}极端{% elif etf_monitor.dd.current_drawdown <= -20 %}重大{% elif etf_monitor.dd.current_drawdown <= -15 %}较大{% else %}中等{% endif %}历史回撤区间（{{ etf_monitor.dd.level.emoji }} {{ etf_monitor.dd.level.label }}）
 {% else %}
 纳指当前处于{{ etf_monitor.dd.level.emoji }} {{ etf_monitor.dd.level.label }}，未进入历史加仓区间
-{% endif %}
+{% endif %}{% if summary.dd_as_of_short %}（回撤按 {{ summary.dd_as_of_short }} 计）{% endif %}
 <br>
 {% if etf_monitor.signal.premium_ok %}场内存在溢价 ≤ {{ thresholds.etf_premium_ok }}% 的 ETF，价格合理：<b style="color:{{ theme.ink }};">{{ etf_monitor.best_label }} {{ etf_monitor.best_premium_display }}</b>
 {% else %}暂无溢价 ≤ {{ thresholds.etf_premium_ok }}% 的场内 ETF{% endif %}
@@ -254,6 +254,7 @@
 {{ kv('历史分位', '%.0f%%'|format(etf_monitor.dd.percentile)) }}
 {{ kv('当前回撤等级', etf_monitor.dd.level.emoji ~ ' ' ~ etf_monitor.dd.level.label) }}
 {{ kv('当前历史最高收盘', '%.2f'|format(etf_monitor.dd.current_peak)) }}
+{{ kv('回撤数据基准', etf_monitor.dd_as_of_full) }}
 </table>
 </td>
 <td width="50%" style="vertical-align:top;padding-left:8px;">
