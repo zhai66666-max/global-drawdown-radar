@@ -22,7 +22,7 @@ ETFS = [
     {"ticker": "EWJ",  "name_cn": "日本",         "market": "日本"},
     {"ticker": "EWY",  "name_cn": "韩国",         "market": "韩国"},
     {"ticker": "INDA", "name_cn": "印度",         "market": "印度"},
-    {"ticker": "EWT",  "name_cn": "台湾",         "market": "台湾"},
+    {"ticker": "EWT",  "name_cn": "中国台湾",     "market": "中国台湾"},
     {"ticker": "EWC",  "name_cn": "加拿大",       "market": "加拿大"},
     {"ticker": "EWW",  "name_cn": "墨西哥",       "market": "墨西哥"},
     {"ticker": "EWA",  "name_cn": "澳大利亚",     "market": "澳大利亚"},

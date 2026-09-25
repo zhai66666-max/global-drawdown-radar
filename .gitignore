@@ -4,7 +4,8 @@
 *.env
 
 # ── 每次运行都会变的产物 ────────────────────────────────────────────────────
-preview.html
+# preview*.html 覆盖 preview.html 与带日期/来源后缀的留存副本（如 preview_云端实跑_*.html）
+preview*.html
 data/archive/
 
 # 注意：以下两个文件需要**提交进仓库**，属于跨天累积的状态而非产物：
